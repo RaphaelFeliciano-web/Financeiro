@@ -19,6 +19,18 @@ document.addEventListener('DOMContentLoaded', () => {
         btnExportar: document.getElementById('btnExportar'),
         btnExportarCSV: document.getElementById('btnExportarCSV'), // Novo botão para CSV
         notificationContainer: document.getElementById('notification-container'),
+        despesasChartContainer: document.getElementById('despesas-chart-container'),
+        despesasListaDetalhada: document.getElementById('despesas-lista-detalhada'),
+        despesasChart: document.getElementById('despesasChart'),
+        despesasChartEmpty: document.getElementById('despesas-chart-empty'),
+        receitasChartContainer: document.getElementById('receitas-chart-container'),
+        receitasListaDetalhada: document.getElementById('receitas-lista-detalhada'),
+        receitasChart: document.getElementById('receitasChart'),
+        receitasChartEmpty: document.getElementById('receitas-chart-empty'),
+        saldoEvolucaoChart: document.getElementById('saldoEvolucaoChart'),
+        analiseResumo: document.getElementById('analise-resumo'),
+        saldoEvolucaoChartContainer: document.querySelector('.grafico-grande .grafico-container'),
+        saldoChartEmpty: document.getElementById('saldo-chart-empty'),
         filtroResumo: document.getElementById('filtro-resumo'),
         confirmationModal: document.getElementById('confirmation-modal'),
         confirmationMessage: document.getElementById('confirmation-message'),
@@ -34,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPagarFatura: document.getElementById('btnPagarFatura'),
         historicoFooter: document.getElementById('historico-footer'),
         btnMostrarMais: document.getElementById('btnMostrarMais'),
+        tabsNav: document.querySelector('.tabs-nav'),
+        historicoContent: document.getElementById('historico-content'),
+        analiseContent: document.getElementById('analise-content'),
         filterButtonsContainer: document.querySelector('.filtros-transacoes'),
     };
 
@@ -100,6 +115,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DOM.btnMostrarMais) {
             DOM.btnMostrarMais.addEventListener('click', () => {
                 transactionManager.showAllTransactions();
+            });
+        }
+
+        if (DOM.tabsNav) {
+            DOM.tabsNav.addEventListener('click', (e) => {
+                const target = e.target.closest('.tab-btn');
+                if (!target) return;
+
+                const tabName = target.dataset.tab;
+
+                // Atualiza botões
+                DOM.tabsNav.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                target.classList.add('active');
+
+                // Atualiza painéis de conteúdo
+                [DOM.historicoContent, DOM.analiseContent].forEach(pane => {
+                    if (pane) pane.classList.toggle('active', pane.id === `${tabName}-content`);
+                });
+
+                if (tabName === 'analise') transactionManager.renderCharts();
             });
         }
 

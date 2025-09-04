@@ -6,6 +6,7 @@ function createTransactionManager(DOM) {
         currentFilter: 'all',
         showingAll: false, // Controla se todas as transações são exibidas
         filterSummaryRequested: false, // Controla a visibilidade do resumo do filtro
+        charts: { despesas: null, receitas: null, saldoEvolucao: null }, // Armazena instâncias dos gráficos
     };
 
     /**
@@ -86,6 +87,31 @@ function createTransactionManager(DOM) {
             DOM.confirmBtnCancel.addEventListener('click', handleCancel);
             document.addEventListener('keydown', handleKeydown);
         });
+    };
+
+    /**
+     * Retorna uma mensagem de status financeiro com base no saldo.
+     */
+    const getFinancialHealthStatus = (metrics) => {
+        const { receitas, saldoFinal } = metrics;
+
+        if (receitas === 0) {
+            return saldoFinal < 0
+                ? '<span>Atenção, você só teve despesas neste período. 🤔</span>'
+                : '<span>Nenhuma movimentação para analisar. Que tal começar?</span>';
+        }
+
+        const balanceToIncomeRatio = saldoFinal / receitas;
+
+        if (balanceToIncomeRatio > 0.5) { // Manteve mais de 50% da renda na conta
+            return '<span class="receita">Excelente! Seu saldo em conta é mais da metade da sua renda. 🚀</span>';
+        } else if (balanceToIncomeRatio > 0.2) { // Manteve mais de 20%
+            return '<span class="positivo">Muito bom! Você está mantendo um saldo saudável em conta. 👍</span>';
+        } else if (balanceToIncomeRatio > 0) { // Manteve algo, mas pouco
+            return '<span>Seu saldo está positivo, mas com uma margem pequena. Fique de olho nos gastos. 👀</span>';
+        } else {
+            return '<span class="despesa">Alerta! Seu saldo em conta está negativo. Vamos revisar o orçamento. 📉</span>';
+        }
     };
 
     /**
@@ -170,11 +196,13 @@ function createTransactionManager(DOM) {
      * Calcula as principais métricas financeiras a partir do estado atual das transações.
      */
     const calculateMetrics = () => {
-        const expenseByCategory = {}; // Para rastrear gastos por categoria
+        const incomeByCategory = {};
+        const expenseByCategory = {};
 
         const metrics = State.transactions.reduce((acc, t) => {
             if (t.tipo === 'receita') {
                 acc.receitas += t.valor;
+                incomeByCategory[t.categoria] = (incomeByCategory[t.categoria] || 0) + t.valor;
             } else if (t.tipo === 'despesa') {
                 acc.totalDespesas += t.valor;
                 if (t.pagamento === 'credito') {
@@ -215,6 +243,27 @@ function createTransactionManager(DOM) {
         }
 
         metrics.expenseByCategory = expenseByCategory;
+        metrics.incomeByCategory = incomeByCategory;
+
+        // Calcula o fluxo mensal de caixa (receitas vs despesas que afetam a conta)
+        const sortedTransactions = [...State.transactions].sort((a, b) => new Date(a.data) - new Date(b.data));
+        const monthlyFlow = {};
+        sortedTransactions.forEach(t => {
+            const date = new Date(t.data);
+            // Cria uma chave no formato 'YYYY-MM' para garantir a ordem cronológica
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!monthlyFlow[monthKey]) {
+                monthlyFlow[monthKey] = { receita: 0, despesa: 0 };
+            }
+            if (t.tipo === 'receita') {
+                monthlyFlow[monthKey].receita += t.valor;
+            } else if (t.pagamento !== 'credito') { // Apenas despesas que saem da conta
+                monthlyFlow[monthKey].despesa += t.valor;
+            }
+        });
+        metrics.monthlyFlow = monthlyFlow;
+
         return metrics;
     };
 
@@ -305,6 +354,42 @@ function createTransactionManager(DOM) {
             return;
         }
 
+        // --- Validação de Saldo ---
+        // Garante que a transação não resultará em saldo negativo na conta.
+        const { saldoFinal } = calculateMetrics();
+        let potentialNewBalance = saldoFinal;
+
+        if (State.editingId) {
+            const originalTransaction = State.transactions.find(t => t.id === State.editingId);
+            if (originalTransaction) {
+                // Reverte o efeito da transação original no saldo da conta
+                if (originalTransaction.tipo === 'receita') {
+                    potentialNewBalance -= originalTransaction.valor;
+                } else if (originalTransaction.pagamento !== 'credito') {
+                    potentialNewBalance += originalTransaction.valor;
+                }
+            }
+        }
+
+        // Aplica o efeito da nova transação (ou da transação editada) no saldo da conta
+        if (tipo === 'receita') {
+            // Ao editar uma despesa para receita, o valor é adicionado.
+            // Ao adicionar uma nova receita, o valor é adicionado.
+            potentialNewBalance += valor;
+        } else if (pagamento !== 'credito') {
+            potentialNewBalance -= valor;
+        }
+
+        // Verifica se a operação é válida
+        if (potentialNewBalance < 0) {
+            const message = State.editingId
+                ? 'A atualização desta transação deixaria seu saldo negativo.'
+                : 'Saldo insuficiente para esta despesa.';
+            showNotification(message, 'error');
+            return;
+        }
+        // --- Fim da Validação de Saldo ---
+
         if (categoria === 'Pagamento de Fatura') {
             tipo = 'despesa';
         }
@@ -378,6 +463,13 @@ function createTransactionManager(DOM) {
 
         if (isNaN(valor) || valor <= 0) {
             showNotification('Por favor, insira um valor de pagamento válido.', 'error');
+            return;
+        }
+
+        // Valida se há saldo suficiente para o pagamento
+        const { saldoFinal } = calculateMetrics();
+        if (saldoFinal < valor) {
+            showNotification('Saldo insuficiente para pagar este valor da fatura.', 'error');
             return;
         }
 
@@ -530,31 +622,6 @@ function createTransactionManager(DOM) {
             showNotification('Não há transações para exportar.', 'info');
             return;
         }
-
-        /**
-         * Retorna uma mensagem de status financeiro com base no saldo.
-         */
-        const getFinancialHealthStatus = (metrics) => {
-            const { receitas, saldoFinal } = metrics;
-
-            if (receitas === 0) {
-                return saldoFinal < 0
-                    ? '<span>Atenção, você só teve despesas neste período. 🤔</span>'
-                    : '<span>Nenhuma movimentação para analisar. Que tal começar?</span>';
-            }
-
-            const balanceToIncomeRatio = saldoFinal / receitas;
-
-            if (balanceToIncomeRatio > 0.5) { // Manteve mais de 50% da renda na conta
-                return '<span class="receita">Excelente! Seu saldo em conta é mais da metade da sua renda. 🚀</span>';
-            } else if (balanceToIncomeRatio > 0.2) { // Manteve mais de 20%
-                return '<span class="positivo">Muito bom! Você está mantendo um saldo saudável em conta. 👍</span>';
-            } else if (balanceToIncomeRatio > 0) { // Manteve algo, mas pouco
-                return '<span>Seu saldo está positivo, mas com uma margem pequena. Fique de olho nos gastos. 👀</span>';
-            } else {
-                return '<span class="despesa">Alerta! Seu saldo em conta está negativo. Vamos revisar o orçamento. 📉</span>';
-            }
-        };
 
         // Gera um arquivo HTML com a extensão .xls, que o Excel abre com estilos.
         const styles = `
@@ -818,10 +885,251 @@ function createTransactionManager(DOM) {
         }
     };
 
+    const renderAnalysisSummary = (metrics) => {
+        if (!DOM.analiseResumo) return;
+    
+        const { receitas, totalDespesas } = metrics;
+        const netBalance = receitas - totalDespesas;
+        const healthStatus = getFinancialHealthStatus(metrics);
+    
+        const summaryHTML = `
+            <div class="analise-resumo-item">
+                <h4>Total de Receitas</h4>
+                <p class="receita">${formatCurrency(receitas)}</p>
+            </div>
+            <div class="analise-resumo-item">
+                <h4>Total de Despesas</h4>
+                <p class="despesa">${formatCurrency(totalDespesas)}</p>
+            </div>
+            <div class="analise-resumo-item">
+                <h4>Balanço do Período</h4>
+                <p class="${netBalance >= 0 ? 'receita' : 'despesa'}">${formatCurrency(netBalance)}</p>
+            </div>
+            <div class="analise-resumo-item health-status-card">
+                <h4>Sua Saúde Financeira</h4>
+                <p>${healthStatus}</p>
+            </div>
+        `;
+    
+        DOM.analiseResumo.innerHTML = summaryHTML;
+    };
+
+    const chartColors = {
+        expense: ['#e35050', '#f5a623', '#4a90e2', '#bd10e0', '#7ed321', '#4a4a4a', '#9013fe', '#f8e71c', '#d0021b', '#b8e986'],
+        income: ['#50e3c2', '#4a90e2', '#7ed321', '#f8e71c', '#9013fe', '#2d7c6c', '#2e5c8a', '#589a1a', '#bfae15', '#670da5']
+    };
+
+    const renderExpenseChart = (metrics, chartFontColor) => {
+        const { expenseByCategory } = metrics;
+        const hasData = expenseByCategory && Object.keys(expenseByCategory).length > 0;
+
+        DOM.despesasChartContainer.classList.toggle('hidden', !hasData);
+        DOM.despesasChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.despesas) State.charts.despesas.destroy();
+
+        if (hasData) {
+            const categoryLabels = Object.keys(expenseByCategory);
+            const categoryData = Object.values(expenseByCategory);
+            const totalExpensesForChart = categoryData.reduce((sum, val) => sum + val, 0);
+
+            const despesasCtx = DOM.despesasChart.getContext('2d');
+            State.charts.despesas = new Chart(despesasCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryData,
+                        backgroundColor: chartColors.expense,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#162447' : '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percentage = ((value / totalExpensesForChart) * 100).toFixed(1);
+                                    return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const sortedExpenses = Object.entries(expenseByCategory).sort(([, a], [, b]) => b - a);
+            let listHTML = '';
+            sortedExpenses.forEach(([category, value], index) => {
+                const color = chartColors.expense[index % chartColors.expense.length];
+                listHTML += `
+                    <div class="lista-detalhada-item">
+                        <span class="lista-detalhada-cor" style="background-color: ${color};"></span>
+                        <span class="lista-detalhada-categoria">${category}</span>
+                        <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                    </div>
+                `;
+            });
+            DOM.despesasListaDetalhada.innerHTML = listHTML;
+        }
+    };
+
+    const renderIncomeChart = (metrics, chartFontColor) => {
+        const { incomeByCategory } = metrics;
+        const hasData = incomeByCategory && Object.keys(incomeByCategory).length > 0;
+
+        DOM.receitasChartContainer.classList.toggle('hidden', !hasData);
+        DOM.receitasChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.receitas) State.charts.receitas.destroy();
+
+        if (hasData) {
+            const incomeLabels = Object.keys(incomeByCategory);
+            const incomeData = Object.values(incomeByCategory);
+            const totalIncomeForChart = incomeData.reduce((sum, val) => sum + val, 0);
+
+            const receitasCtx = DOM.receitasChart.getContext('2d');
+            State.charts.receitas = new Chart(receitasCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: incomeLabels,
+                    datasets: [{
+                        data: incomeData,
+                        backgroundColor: chartColors.income,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#162447' : '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percentage = ((value / totalIncomeForChart) * 100).toFixed(1);
+                                    return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const sortedIncomes = Object.entries(incomeByCategory).sort(([, a], [, b]) => b - a);
+            let listHTML = '';
+            sortedIncomes.forEach(([category, value], index) => {
+                const color = chartColors.income[index % chartColors.income.length];
+                listHTML += `
+                    <div class="lista-detalhada-item receita">
+                        <span class="lista-detalhada-cor" style="background-color: ${color};"></span>
+                        <span class="lista-detalhada-categoria">${category}</span>
+                        <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                    </div>
+                `;
+            });
+            DOM.receitasListaDetalhada.innerHTML = listHTML;
+        }
+    };
+
+    const renderBalanceChart = (metrics, chartFontColor) => {
+        const { monthlyFlow } = metrics;
+        const hasData = monthlyFlow && Object.keys(monthlyFlow).length > 0;
+
+        DOM.saldoEvolucaoChartContainer.classList.toggle('hidden', !hasData);
+        DOM.saldoChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.saldoEvolucao) State.charts.saldoEvolucao.destroy();
+
+        if (hasData) {
+            const monthKeys = Object.keys(monthlyFlow);
+            
+            const labels = monthKeys.map(key => {
+                const [year, month] = key.split('-');
+                return new Date(year, month - 1).toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+            });
+
+            const incomeData = monthKeys.map(month => monthlyFlow[month].receita);
+            const expenseData = monthKeys.map(month => monthlyFlow[month].despesa);
+
+            const saldoCtx = DOM.saldoEvolucaoChart.getContext('2d');
+            State.charts.saldoEvolucao = new Chart(saldoCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Receitas',
+                        data: incomeData,
+                        backgroundColor: 'rgba(80, 227, 194, 0.7)',
+                        borderColor: '#50e3c2',
+                        borderWidth: 1
+                    }, {
+                        label: 'Despesas',
+                        data: expenseData,
+                        backgroundColor: 'rgba(227, 80, 80, 0.7)',
+                        borderColor: '#e35050',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    };
+
+    /**
+     * Renderiza os gráficos de análise financeira.
+     */
+    const renderCharts = () => {
+        if (!DOM.despesasChart || !DOM.receitasChart || !DOM.saldoEvolucaoChart) return; // Safety check
+
+        const metrics = calculateMetrics();
+        const chartFontColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333';
+        Chart.defaults.color = chartFontColor;
+
+        renderAnalysisSummary(metrics);
+        renderExpenseChart(metrics, chartFontColor);
+        renderIncomeChart(metrics, chartFontColor);
+        renderBalanceChart(metrics, chartFontColor);
+    };
+
     const updateDOM = (options = {}) => {
         renderTransactions(options);
         updateBalance();
         renderFilterSummary();
+        renderCharts(); // Atualiza os gráficos junto com o resto da DOM
     };
 
     const init = () => {
@@ -881,5 +1189,6 @@ function createTransactionManager(DOM) {
         updateDOM,
         setFilter, // Expõe a nova função de filtro
         showAllTransactions, // Expõe a nova função
+        renderCharts, // Expõe a função de renderizar gráficos
     };
 }

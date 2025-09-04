@@ -66,56 +66,100 @@
             <!-- Cards de Balanço -->
             <div class="balanco-container">
                 <div class="card-balanco">
-                    <h2>Saldo em Conta</h2>
+                    <h2><span class="card-icon">💰</span> Saldo em Conta</h2>
                     <p id="saldoAtual">R$ 0,00</p>
                 </div>
                  <div class="card-balanco divida">
                     <div class="card-header">
-                        <h2>Dívida Cartão</h2>
+                        <h2><span class="card-icon">💳</span> Dívida Cartão</h2>
                         <button id="btnPagarFatura" class="btn-pay-bill" title="Pagar Fatura">Pagar</button>
                     </div>
                     <p id="dividaCartao">R$ 0,00</p>
                 </div>
             </div>
 
-            <div class="lista-transacoes">
-                <div class="historico-header">
-                    <h2>Histórico de Transações</h2>
-                    <div class="botoes-acao-cabecalho">
-                        <button id="theme-toggle-btn" class="btn-theme" title="Alternar Tema">🌙</button>
-                        <button id="btnExportar" class="btn-exportar" title="Gera um relatório visual em HTML">Relatório (HTML)</button>
-                        <button id="btnExportarCSV" class="btn-secondary" title="Gera uma planilha CSV para Excel">Excel (CSV)</button>
-                        <button id="btnLimparTudo" class="btn-perigo">Limpar Tudo</button>
+            <div class="tabs-container">
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="historico">Histórico</button>
+                    <button class="tab-btn" data-tab="analise">Análise Gráfica</button>
+                </div>
+
+                <div class="tabs-content">
+                    <!-- Aba de Histórico -->
+                    <div id="historico-content" class="tab-pane active">
+                        <div class="historico-header">
+                            <h2>Histórico de Transações</h2>
+                            <div class="botoes-acao-cabecalho">
+                                <button id="theme-toggle-btn" class="btn-theme" title="Alternar Tema">🌙</button>
+                                <button id="btnExportar" class="btn-exportar" title="Gera um relatório visual em HTML">Relatório (HTML)</button>
+                                <button id="btnExportarCSV" class="btn-secondary" title="Gera uma planilha CSV para Excel">Excel (CSV)</button>
+                                <button id="btnLimparTudo" class="btn-perigo">Limpar Tudo</button>
+                            </div>
+                        </div>
+                        <div class="filtros-transacoes">
+                            <button class="filtro-btn active" data-filter="all">Todos</button>
+                            <button class="filtro-btn" data-filter="receita">Receitas</button>
+                            <button class="filtro-btn" data-filter="despesa">Despesas</button>
+                        </div>
+                        <div id="filtro-resumo" class="filtro-resumo hidden"></div>
+                        <div class="transacoes-header">
+                            <div class="col-data">Data</div>
+                            <div class="col-descricao">Descrição</div>
+                            <div class="col-categoria">Categoria</div>
+                            <div class="col-pagamento">Pagamento</div>
+                            <div class="col-valor">Valor</div>
+                            <div class="col-acoes">Ações</div>
+                        </div>
+                        <ul id="transacoesLista"></ul>
+                        <div id="empty-state-message" class="empty-state">
+                            <p>Nenhuma transação registrada ainda.</p>
+                        </div>
+                        <div id="historico-footer" class="historico-footer hidden">
+                            <button id="btnMostrarMais" class="btn-secondary">Mostrar Mais</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Filtros de Transações -->
-                <div class="filtros-transacoes">
-                    <button class="filtro-btn active" data-filter="all">Todos</button>
-                    <button class="filtro-btn" data-filter="receita">Receitas</button>
-                    <button class="filtro-btn" data-filter="despesa">Despesas</button>
-                </div>
-
-                <!-- Resumo do Filtro -->
-                <div id="filtro-resumo" class="filtro-resumo hidden"></div>
-
-                <div class="transacoes-header">
-                    <div class="col-data">Data</div>
-                    <div class="col-descricao">Descrição</div>
-                    <div class="col-categoria">Categoria</div>
-                    <div class="col-pagamento">Pagamento</div>
-                    <div class="col-valor">Valor</div>
-                    <div class="col-acoes">Ações</div>
-                </div>
-
-                <ul id="transacoesLista">
-                    <!-- Transações serão inseridas aqui via JS -->
-                </ul>
-                <div id="empty-state-message" class="empty-state">
-                    <p>Nenhuma transação registrada ainda.</p>
-                </div>
-                <div id="historico-footer" class="historico-footer hidden">
-                    <button id="btnMostrarMais" class="btn-secondary">Mostrar Mais</button>
+                    <!-- Aba de Análise -->
+                    <div id="analise-content" class="tab-pane">
+                        <div id="analise-resumo" class="analise-resumo">
+                            <!-- Conteúdo do resumo será inserido aqui via JS -->
+                        </div>
+                        <div class="graficos-grid">
+                            <div class="grafico-card">
+                                <h3>📊 Despesas por Categoria</h3>
+                                <div class="grafico-com-lista" id="despesas-chart-container">
+                                    <div class="grafico-container">
+                                        <canvas id="despesasChart"></canvas>
+                                    </div>
+                                    <div id="despesas-lista-detalhada" class="lista-detalhada"></div>
+                                </div>
+                                <div id="despesas-chart-empty" class="chart-empty-state hidden">
+                                    <p>Adicione despesas para ver a análise.</p>
+                                </div>
+                            </div>
+                            <div class="grafico-card">
+                                <h3>📈 Receitas por Categoria</h3>
+                                <div class="grafico-com-lista" id="receitas-chart-container">
+                                    <div class="grafico-container">
+                                        <canvas id="receitasChart"></canvas>
+                                    </div>
+                                    <div id="receitas-lista-detalhada" class="lista-detalhada"></div>
+                                </div>
+                                <div id="receitas-chart-empty" class="chart-empty-state hidden">
+                                    <p>Adicione receitas para ver a análise.</p>
+                                </div>
+                            </div>
+                            <div class="grafico-card grafico-grande">
+                                <h3>🗓️ Receitas vs. Despesas por Mês</h3>
+                                <div class="grafico-container">
+                                    <canvas id="saldoEvolucaoChart"></canvas>
+                                </div>
+                                <div id="saldo-chart-empty" class="chart-empty-state hidden">
+                                    <p>Adicione transações para ver a evolução do seu saldo.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -165,6 +209,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="src/js/transaction.js"></script>
     <script src="src/js/javascript.js"></script>
 </body>
