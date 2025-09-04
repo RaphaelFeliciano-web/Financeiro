@@ -1,0 +1,14 @@
+# Dependency directories
+# Ignora a pasta node_modules que pode existir dentro do backend
+/backend/node_modules
+
+# Arquivos de ambiente
+.env
+
+# Arquivos de configuração de IDEs/Editores
+.vscode/
+.idea/
+
+# Arquivos gerados pelo Sistema Operacional
+.DS_Store
+Thumbs.db

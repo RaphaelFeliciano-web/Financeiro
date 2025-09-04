@@ -1,0 +1,511 @@
+/* --- Variáveis de Cores e Estilos Globais --- */
+:root {
+    --cor-fundo: #9ea183;
+    --cor-texto: #333;
+    --cor-primaria: #4a90e2;
+    --cor-sucesso: #50e3c2;
+    --cor-perigo: #e35050;
+    --cor-aviso: #f5a623;
+    --cor-secundaria: #5f6469;
+    --cor-cartao: #ffffff;
+    --cor-borda: #e0e0e0;
+    --sombra-cartao: 0 4px 8px rgba(24, 11, 11, 0.05);
+    --raio-borda: 8px;
+}
+
+[data-theme="dark"] {
+    --cor-fundo: #1a1a2e;
+    --cor-texto: #e0e0e0;
+    --cor-primaria: #5a9ee2;
+    --cor-secundaria: #868e96;
+    --cor-cartao: #162447;
+    --cor-borda: #334;
+    --sombra-cartao: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Reset e Base --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+    transition: background-color 0.3s, color 0.3s;
+    line-height: 1.6;
+}
+
+/* --- Layout Principal --- */
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 0 20px;
+    gap: 30px;
+}
+
+.coluna-principal {
+    flex: 3;
+    min-width: 300px;
+}
+
+.coluna-lateral {
+    flex: 1;
+    min-width: 300px;
+}
+
+h1, h2 {
+    color: var(--cor-texto);
+    margin-bottom: 1rem;
+}
+
+/* --- Componentes --- */
+.card-balanco, .formulario-transacao, .lista-transacoes {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    margin-bottom: 0px;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.balanco-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card-balanco h2 {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.card-balanco p {
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h2 {
+    margin-bottom: 0;
+}
+
+.btn-pay-bill {
+    background-color: var(--cor-aviso);
+    color: white;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+}
+
+/* Cores dinâmicas para os cards de balanço */
+.card-balanco.positivo p {
+    color: var(--cor-sucesso);
+}
+
+.card-balanco.negativo p {
+    color: var(--cor-perigo);
+}
+
+.card-balanco.neutro p {
+    color: var(--cor-texto);
+}
+
+/* --- Gráfico --- */
+.grafico-container {
+    display: none; /* Começa escondido */
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    margin-bottom: 20px;
+}
+
+/* --- Formulário --- */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label, .form-group legend {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+input[type="text"], select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 4px;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+}
+
+fieldset {
+    border: none;
+    padding: 0;
+}
+
+.opcoes-radio {
+    display: flex;
+    gap: 15px;
+}
+
+.opcoes-radio input[type="radio"] {
+    margin-right: 5px;
+}
+
+/* --- Botões --- */
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.2s, box-shadow 0.2s;
+    outline: none; /* Remove o outline padrão para usar o box-shadow */
+}
+
+/* Estilo de foco acessível para todos os botões */
+button:focus-visible {
+    box-shadow: 0 0 0 2px var(--cor-fundo), 0 0 0 4px var(--cor-primaria);
+}
+
+button:hover {
+    opacity: 0.85;
+}
+
+#addTransactionBtn {
+    width: 100%;
+    background-color: var(--cor-primaria);
+    color: white;
+    padding: 12px;
+    font-size: 1rem;
+}
+
+.btn-perigo { background-color: var(--cor-perigo); color: white; }
+.btn-secondary { background-color: var(--cor-secundaria); color: white; }
+.btn-exportar { background-color: var(--cor-sucesso); color: white; }
+.btn-toggle-grafico { background-color: var(--cor-primaria); color: white; margin-bottom: 20px; }
+.btn-theme { background: none; font-size: 1.5rem; padding: 0 10px; }
+
+/* --- Lista de Transações --- */
+.historico-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.botoes-acao-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filtros-transacoes {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--cor-borda);
+}
+
+.filtro-btn {
+    background-color: transparent;
+    color: var(--cor-secundaria);
+    border: 1px solid var(--cor-borda);
+    font-weight: 500;
+}
+
+.filtro-btn.active, .filtro-btn:hover {
+    background-color: var(--cor-primaria);
+    color: white;
+    border-color: var(--cor-primaria);
+    opacity: 1;
+}
+
+.filtro-resumo {
+    background-color: var(--cor-fundo);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    border: 1px solid var(--cor-borda);
+}
+
+.resumo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.resumo-item {
+    text-align: center;
+    padding: 10px 15px;
+    border-radius: 4px;
+    background-color: var(--cor-cartao);
+    flex-grow: 1;
+    min-width: 150px; /* Garante que os itens não fiquem muito espremidos */
+}
+
+.resumo-item h4 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+    margin-bottom: 5px;
+}
+
+.resumo-item p {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.transacoes-header {
+    display: grid;
+    grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-bottom: 2px solid var(--cor-borda);
+    margin-bottom: 10px;
+}
+
+#transacoesLista li {
+    display: grid;
+    grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--cor-borda);
+    gap: 10px;
+}
+
+#transacoesLista li:last-child {
+    border-bottom: none;
+}
+
+#transacoesLista li.receita .col-valor { color: var(--cor-sucesso); }
+#transacoesLista li.despesa .col-valor { color: var(--cor-perigo); }
+.resumo-item .receita { color: var(--cor-sucesso); }
+.resumo-item .despesa { color: var(--cor-perigo); }
+
+
+.col-acoes { text-align: right; }
+.col-acoes button { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 5px; }
+.delete-btn:hover { color: var(--cor-perigo); }
+.edit-btn:hover { color: var(--cor-primaria); }
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+.historico-footer {
+    text-align: center;
+    /* Adiciona o espaço abaixo da lista quando o botão aparece */
+    padding: 20px 0;
+    margin-top: 10px;
+}
+
+#btnMostrarMais {
+    width: 50%;
+    max-width: 250px;
+}
+
+/* --- Modal e Notificações --- */
+.hidden { display: none !important; }
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 20px; /* Espaçamento para a "bolha" não colar no topo */
+    pointer-events: none; /* Permite clicar "através" do container vazio */
+    background-color: transparent;
+    display: block; /* Altera de flex para block */
+}
+
+.modal-content {
+    background-color: var(--cor-cartao);
+    border-radius: var(--raio-borda);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    width: auto; /* Largura automática baseada no conteúdo */
+    max-width: 550px;
+    margin: 0 auto; /* Centraliza a bolha horizontalmente */
+    pointer-events: auto; /* Captura cliques na bolha */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 25px;
+    gap: 20px;
+    transform: translateY(-150%);
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.modal-overlay:not(.hidden) .modal-content {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: none;
+}
+
+.modal-icon, .modal-content h3 {
+    display: none;
+}
+
+#confirmation-message {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    flex-grow: 1; /* Faz o texto ocupar o espaço disponível */
+}
+
+.confirmation-buttons {
+    margin-top: 0;
+    flex-shrink: 0; /* Impede que os botões encolham */
+    display: flex;
+    gap: 15px;
+}
+
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: var(--cor-cartao);
+    color: var(--cor-texto);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1), 0 2px 5px rgba(0,0,0,0.05);
+    min-width: 320px;
+    max-width: 400px;
+    border-left: 5px solid;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.success { border-color: var(--cor-sucesso); }
+.toast.error { border-color: var(--cor-perigo); }
+.toast.info { border-color: var(--cor-primaria); }
+
+.toast-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.toast.success .toast-icon { color: var(--cor-sucesso); }
+.toast.error .toast-icon { color: var(--cor-perigo); }
+.toast.info .toast-icon { color: var(--cor-primaria); }
+
+.toast-message {
+    flex-grow: 1;
+    margin: 0;
+    padding-right: 15px;
+}
+
+.toast-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: var(--cor-secundaria);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.toast-close:hover {
+    color: var(--cor-texto);
+}
+
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background-color: var(--cor-primaria);
+    animation: progress-bar linear forwards;
+}
+
+@keyframes progress-bar {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+.toast.success .toast-progress { background-color: var(--cor-sucesso); }
+.toast.error .toast-progress { background-color: var(--cor-perigo); }
+.toast.info .toast-progress { background-color: var(--cor-primaria); }
+
+/* --- Responsividade --- */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column-reverse;
+    }
+    .transacoes-header, #transacoesLista li {
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 15px;
+    }
+    .col-data, .col-categoria, .col-pagamento {
+        display: none;
+    }
+    #transacoesLista li .col-descricao {
+        grid-column: 1 / 2;
+    }
+    #transacoesLista li .col-valor {
+        grid-column: 2 / 3;
+        text-align: right;
+    }
+    #transacoesLista li .col-acoes {
+        grid-column: 3 / 4;
+    }
+}
+
+/* --- Estilos para Telas Maiores (Desktops Largos) --- */
+@media (min-width: 1440px) {
+    .container {
+        max-width: 1600px;
+        gap: 40px; /* Aumenta o espaço entre as colunas */
+        padding: 0 30px;
+    }
+
+    .coluna-principal {
+        flex: 2.5; /* Ajusta a proporção para a coluna principal não ficar excessivamente larga */
+    }
+
+    .card-balanco p {
+        font-size: 1.7rem; /* Leve ajuste no tamanho da fonte do saldo */
+    }
+}

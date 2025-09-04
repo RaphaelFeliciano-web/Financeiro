@@ -1,0 +1,36 @@
+version: '3.8'
+
+# Em seu arquivo docker-compose.yml
+services:
+  app:
+    build: ./backend # CORRETO: Aponta para a pasta que contém o Dockerfile
+    # ... outras configurações
+    ports:
+      - "3030:3000" # Mapeia a porta 3030 da sua máquina para a 3000 do contêiner
+    # ... resto das configurações
+
+    volumes:
+      - ./backend:/app # Espelha seu código local para dentro do container para live-reload
+      - /app/node_modules # Garante que o node_modules do container não seja sobrescrito
+    env_file:
+      - .env # Carrega variáveis de ambiente do arquivo .env
+    depends_on:
+      mongo:
+        condition: service_healthy # Espera o MongoDB estar "saudável" antes de iniciar
+
+  # Serviço do Banco de Dados (MongoDB)
+  mongo:
+    image: mongo:6.0 # Fixa a versão para garantir consistência e evitar quebras futuras
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db # Persiste os dados do banco de dados
+    healthcheck:
+      # Comando que verifica se o MongoDB está pronto para receber conexões
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  mongo-data:
