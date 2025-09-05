@@ -11,6 +11,8 @@
     --cor-borda: #e0e0e0;
     --sombra-cartao: 0 4px 8px rgba(24, 11, 11, 0.05);
     --raio-borda: 8px;
+    --sombra-cartao-hover: 0 10px 20px rgba(0,0,0,0.08);
+    --grid-transacoes-desktop: 1.5fr 2fr 1fr 1fr 1fr 1fr;
 }
 
 [data-theme="dark"] {
@@ -21,6 +23,7 @@
     --cor-cartao: #162447;
     --cor-borda: #334;
     --sombra-cartao: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --sombra-cartao-hover: 0 10px 20px rgba(0,0,0,0.25);
 }
 
 /* --- Reset e Base --- */
@@ -129,6 +132,7 @@ h1, h2 {
 .card-balanco:hover {
     transform: translateY(-4px);
     box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    box-shadow: var(--sombra-cartao-hover);
 }
 
 [data-theme="dark"] .card-balanco:hover {
@@ -137,6 +141,7 @@ h1, h2 {
 
 .card-balanco h2 {
     font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 500;
     color: var(--cor-secundaria);
     display: flex;
@@ -145,6 +150,8 @@ h1, h2 {
 
 .card-balanco p {
     font-size: 2.2rem;
+    /* Use clamp for fluid typography: min, preferred, max */
+    font-size: clamp(1.7rem, 5vw, 2.2rem);
     font-weight: 600;
     text-align: right;
     margin-top: 10px;
@@ -298,7 +305,7 @@ h1, h2 {
 }
 
 .grafico-card {
-    padding: 20px;
+  
     border-radius: var(--raio-borda);
     background-color: var(--cor-cartao);
 }
@@ -353,6 +360,8 @@ input[type="text"], select {
     border: 1px solid var(--cor-borda);
     border-radius: 4px;
     background-color: var(--cor-fundo);
+    border-radius: var(--raio-borda);
+    background-color: transparent;
     color: var(--cor-texto);
 }
 
@@ -481,6 +490,7 @@ button:hover {
 .transacoes-header {
     display: grid;
     grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: var(--grid-transacoes-desktop);
     font-weight: bold;
     padding: 10px 15px;
     border-bottom: 2px solid var(--cor-borda);
@@ -490,6 +500,7 @@ button:hover {
 #transacoesLista li {
     display: grid;
     grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: var(--grid-transacoes-desktop);
     align-items: center;
     padding: 10px 15px;
     border-bottom: 1px solid var(--cor-borda);
