@@ -28,7 +28,7 @@
 
 /* --- Reset e Base --- */
 * {
-    margin: 0;
+  margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -59,6 +59,14 @@ body {
 .coluna-lateral {
     flex: 1;
     min-width: 300px;
+}
+
+.coluna-principal.full-screen {
+    flex: 1; /* Ocupa todo o espaço disponível */
+}
+
+.coluna-lateral.hidden {
+    display: none; /* Esconde a coluna lateral */
 }
 
 h1, h2 {
@@ -409,6 +417,7 @@ button:hover {
 
 .btn-perigo { background-color: var(--cor-perigo); color: white; }
 .btn-secondary { background-color: var(--cor-secundaria); color: white; }
+.btn-sucesso { background-color: var(--cor-sucesso); color: white; }
 .btn-exportar { background-color: var(--cor-sucesso); color: white; }
 .btn-toggle-grafico { background-color: var(--cor-primaria); color: white; margin-bottom: 20px; }
 .btn-theme { background: none; font-size: 1.5rem; padding: 0 10px; }
@@ -548,54 +557,75 @@ button:hover {
     top: 0;
     left: 0;
     width: 100%;
+    height: 100%; /* Ocupa a tela toda */
     z-index: 1000;
-    padding: 20px; /* Espaçamento para a "bolha" não colar no topo */
-    pointer-events: none; /* Permite clicar "através" do container vazio */
-    background-color: transparent;
-    display: block; /* Altera de flex para block */
+    background-color: rgba(0, 0, 0, 0.6); /* Fundo semi-transparente */
+    display: flex; /* Para centralizar o conteúdo */
+    align-items: center;
+    justify-content: center;
+    padding: 20px; /* Espaçamento para não colar nas bordas */
+    opacity: 0; /* Começa invisível para animação */
+    transition: opacity 0.3s ease;
+    pointer-events: none; /* Começa sem capturar eventos */
+}
+
+.modal-overlay:not(.hidden) {
+    opacity: 1; /* Fica visível */
+    pointer-events: auto; /* Captura eventos */
 }
 
 .modal-content {
     background-color: var(--cor-cartao);
     border-radius: var(--raio-borda);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    width: auto; /* Largura automática baseada no conteúdo */
-    max-width: 550px;
-    margin: 0 auto; /* Centraliza a bolha horizontalmente */
-    pointer-events: auto; /* Captura cliques na bolha */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 25px;
-    gap: 20px;
-    transform: translateY(-150%);
-    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    width: 100%; /* Ocupa a largura disponível no padding do overlay */
+    max-width: 500px; /* Largura máxima */
+    padding: 25px 30px;
+    display: block; /* Volta a ser block para empilhar conteúdo */
+    transform: scale(0.95); /* Começa um pouco menor para animação */
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .modal-overlay:not(.hidden) .modal-content {
-    transform: translateY(0);
+    transform: scale(1); /* Volta ao tamanho normal */
+    opacity: 1;
 }
 
-.modal-header {
-    display: none;
+/* Estrutura interna do Modal */
+.modal-header h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--cor-texto);
 }
 
-.modal-icon, .modal-content h3 {
-    display: none;
+.modal-header p {
+    margin-bottom: 20px;
+    color: var(--cor-secundaria);
+    line-height: 1.5;
 }
 
-#confirmation-message {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 500;
-    flex-grow: 1; /* Faz o texto ocupar o espaço disponível */
+.modal-body {
+    margin-bottom: 25px;
 }
 
-.confirmation-buttons {
-    margin-top: 0;
-    flex-shrink: 0; /* Impede que os botões encolham */
+.modal-footer {
     display: flex;
-    gap: 15px;
+    justify-content: flex-end; /* Alinha os botões à direita */
+    gap: 10px;
+}
+
+/* Ajuste específico para o modal de confirmação que só tem um título e botões */
+#confirmation-modal .modal-header h3 {
+    margin-bottom: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+#confirmation-modal .modal-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 550px;
 }
 
 .notification-container {
@@ -710,6 +740,31 @@ button:hover {
     }
 }
 
+/* Media query para telas ainda menores, focando em componentes específicos */
+@media (max-width: 500px) {
+    /* Ajusta o cabeçalho da aba de metas para empilhar verticalmente */
+    .metas-header {
+        flex-direction: column;
+        align-items: stretch; /* Faz os itens ocuparem a largura total */
+        gap: 15px;
+    }
+
+    /* Empilha os textos de progresso nas metas para melhor leitura */
+    .savings-progress-text {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    /* Adiciona mais espaço entre o ícone e o input do orçamento */
+    .orcamento-item {
+        gap: 15px;
+    }
+
+    /* Reduz o padding dos modais para dar mais espaço ao conteúdo */
+    .modal-content { padding: 20px; }
+}
+
 /* --- Estilos para Telas Maiores (Desktops Largos) --- */
 @media (min-width: 1440px) {
     .container {
@@ -725,4 +780,293 @@ button:hover {
     .card-balanco p {
         font-size: 1.7rem; /* Leve ajuste no tamanho da fonte do saldo */
     }
+}
+
+/* --- Metas Financeiras (NOVO) --- */
+.meta-card {
+    background-color: var(--cor-fundo);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    margin-bottom: 15px;
+}
+
+.meta-card h4 {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.meta-progresso-barra {
+    width: 100%;
+    height: 20px;
+    background-color: var(--cor-borda);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.meta-progresso-preenchimento {
+    width: 0%; /* Será atualizado via JS */
+    height: 100%;
+    background-color: var(--cor-sucesso);
+    transition: width 0.5s ease-in-out;
+}
+
+/* --- Orçamento --- */
+.subtitulo-orcamento {
+    color: var(--cor-secundaria);
+    margin-top: -15px;
+    margin-bottom: 20px;
+}
+
+.orcamento-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.orcamento-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--cor-cartao);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.orcamento-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-cartao-hover);
+}
+
+.orcamento-icon {
+    font-size: 1.5rem;
+    margin-right: 15px;
+}
+
+.orcamento-item label {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.orcamento-input-wrapper {
+    display: flex;
+    align-items: center;
+    background-color: var(--cor-fundo);
+    border-radius: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--cor-borda);
+}
+
+.orcamento-input-wrapper span {
+    font-weight: bold;
+    color: var(--cor-secundaria);
+    margin-right: 5px;
+}
+
+.orcamento-item input {
+    width: 80px;
+    text-align: right;
+    font-weight: bold;
+    background-color: transparent;
+    border: none;
+    color: var(--cor-texto);
+    font-size: 1rem;
+}
+
+.orcamento-item input:focus {
+    outline: none;
+}
+
+#orcamento-progresso-container {
+    display: grid;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.orcamento-empty-state {
+    background-color: var(--cor-fundo);
+    padding: 30px;
+    text-align: center;
+    border-radius: var(--raio-borda);
+    color: var(--cor-secundaria);
+    font-style: italic;
+}
+
+.progresso-orcamento-item {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.progresso-orcamento-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.progresso-orcamento-valores {
+    font-size: 0.9rem;
+    color: var(--cor-secundaria);
+}
+
+.progresso-orcamento-valores .gasto {
+    color: var(--cor-texto);
+    font-weight: bold;
+}
+
+.progresso-orcamento-barra {
+    width: 100%;
+    height: 14px;
+    background-color: var(--cor-borda);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progresso-orcamento-preenchimento {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cor-sucesso), #45c4a8);
+    border-radius: 6px;
+    transition: width 0.5s ease-in-out;
+}
+
+/* Cores da barra de progresso */
+.progresso-orcamento-preenchimento.aviso {
+    background: linear-gradient(90deg, var(--cor-aviso), #e69500);
+}
+.progresso-orcamento-preenchimento.perigo {
+    background: linear-gradient(90deg, var(--cor-perigo), #c9302c);
+}
+
+/* --- Meta de Economia --- */
+.btn-set-goal {
+    background-color: var(--cor-secundaria);
+    color: white;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    border-radius: 6px;
+}
+
+.savings-progress-container {
+    margin-top: 15px;
+}
+
+.savings-progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: var(--cor-borda);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.savings-progress-fill {
+    height: 100%;
+    width: 0%; /* Será atualizado via JS */
+    background: linear-gradient(90deg, var(--cor-primaria), #6caff5);
+    border-radius: 10px;
+    transition: width 0.5s ease-in-out;
+}
+
+.savings-progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+}
+
+#savedAmount {
+    color: var(--cor-texto);
+    font-weight: bold;
+}
+
+/* --- Seção de Metas --- */
+.metas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: -10px; /* Ajusta o espaço com o subtítulo */
+}
+.metas-header .btn-sucesso {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+
+
+.meta-card .card-header {
+    /* Adiciona espaço abaixo do cabeçalho do card de meta */
+    margin-bottom: 15px;
+}
+
+.meta-card {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+}
+
+.metas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.meta-card.meta-principal {
+    /* Garante que a meta principal não entre no grid */
+    grid-column: 1 / -1; 
+}
+
+.meta-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0; /* A margem agora é controlada pelo .card-header */
+}
+
+/* Reutilizando estilos da barra de progresso de economia */
+.meta-card .savings-progress-bar {
+    height: 14px;
+}
+
+.meta-card .savings-progress-text {
+    font-size: 0.9rem;
+}
+
+.goal-card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.delete-goal-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--cor-secundaria);
+}
+.delete-goal-btn:hover {
+    color: var(--cor-perigo);
+}
+
+.meta-card-footer {
+    margin-top: 15px;
+    text-align: right;
+}
+.btn-add-to-goal {
+    background-color: var(--cor-primaria);
+    color: white;
 }

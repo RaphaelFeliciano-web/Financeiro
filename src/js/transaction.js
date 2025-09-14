@@ -7,12 +7,48 @@ function createTransactionManager(DOM) {
         showingAll: false, // Controla se todas as transações são exibidas
         filterSummaryRequested: false, // Controla a visibilidade do resumo do filtro
         charts: { despesas: null, receitas: null, saldoEvolucao: null }, // Armazena instâncias dos gráficos
+        budgets: JSON.parse(localStorage.getItem('budgets')) || {}, // Novo estado para orçamentos
+        mainGoal: JSON.parse(localStorage.getItem('mainGoal')) || { name: 'Meta de Economia Mensal', target: 0 },
+        customGoals: JSON.parse(localStorage.getItem('customGoals')) || [],
+        goalActionTargetId: null, // ID da meta para adicionar fundos ou excluir
+        valuesVisible: true, // Novo estado para controlar a visibilidade dos valores
+    };
+
+    /**
+     * Salva as transações no Local Storage, garantindo a persistência dos dados.
+     */
+    const saveToLocalStorage = () => {
+        localStorage.setItem('transactions', JSON.stringify(State.transactions));
+    };
+
+    /**
+     * Salva os orçamentos no Local Storage.
+     */
+    const saveBudgetsToLocalStorage = () => {
+        localStorage.setItem('budgets', JSON.stringify(State.budgets));
+    };
+
+    /**
+     * Salva as metas personalizadas no Local Storage.
+     */
+    const saveCustomGoalsToLocalStorage = () => {
+        localStorage.setItem('customGoals', JSON.stringify(State.customGoals));
+    };
+
+    /**
+     * Salva a meta principal no Local Storage.
+     */
+    const saveMainGoalToLocalStorage = () => {
+        localStorage.setItem('mainGoal', JSON.stringify(State.mainGoal));
     };
 
     /**
      * Formata um número para a moeda BRL.
      */
     const formatCurrency = (value) => {
+        if (!State.valuesVisible) {
+            return 'R$ •••••';
+        }
         return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
@@ -115,13 +151,6 @@ function createTransactionManager(DOM) {
     };
 
     /**
-     * Salva as transações no Local Storage, garantindo a persistência dos dados.
-     */
-    const saveToLocalStorage = () => {
-        localStorage.setItem('transactions', JSON.stringify(State.transactions));
-    };
-
-    /**
      * Renderiza o histórico de transações na tela.
      */
     const renderTransactions = (options = {}) => {
@@ -171,18 +200,18 @@ function createTransactionManager(DOM) {
             const editBtn = clone.querySelector('.edit-btn');
 
             li.classList.add(transaction.tipo);
-            li.dataset.id = transaction.id;
+            li.dataset.id = transaction.id; // Usaremos o ID numérico novamente
 
             clone.querySelector('.col-data').textContent = formatDateTime(transaction.data);
-            clone.querySelector('.col-descricao').textContent = transaction.descricao;
+            clone.querySelector('.col-descricao').textContent = transaction.descricao; // O ID do backend será `_id`
             clone.querySelector('.col-categoria').textContent = transaction.categoria;
             clone.querySelector('.col-pagamento').textContent = transaction.pagamento;
 
             const valorPrefix = transaction.tipo === 'receita' ? '+ ' : '- ';
             clone.querySelector('.col-valor').textContent = valorPrefix + formatCurrency(transaction.valor);
 
-            deleteBtn.dataset.id = transaction.id;
-            editBtn.dataset.id = transaction.id;
+            deleteBtn.dataset.id = transaction.id; // Usaremos o ID numérico novamente
+            editBtn.dataset.id = transaction.id; // Usaremos o ID numérico novamente
 
             if (transaction.id === highlightId) {
                 li.classList.add('flash');
@@ -199,22 +228,30 @@ function createTransactionManager(DOM) {
         const incomeByCategory = {};
         const expenseByCategory = {};
 
+        // Adiciona a lógica para identificar o mês atual
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+
         const metrics = State.transactions.reduce((acc, t) => {
+            const transactionDate = new Date(t.data);
+            const isCurrentMonth = transactionDate.getFullYear() === currentYear && transactionDate.getMonth() === currentMonth;
+
             if (t.tipo === 'receita') {
                 acc.receitas += t.valor;
-                incomeByCategory[t.categoria] = (incomeByCategory[t.categoria] || 0) + t.valor;
+                if (isCurrentMonth) incomeByCategory[t.categoria] = (incomeByCategory[t.categoria] || 0) + t.valor;
             } else if (t.tipo === 'despesa') {
                 acc.totalDespesas += t.valor;
                 if (t.pagamento === 'credito') {
                     acc.gastosNoCredito += t.valor;
                 } else {
                     acc.despesasEmConta += t.valor; // Inclui débito, pix, etc.
-                    if (t.pagamento === 'debito') acc.totalGastoDebito += t.valor;
-                    if (t.pagamento === 'pix') acc.totalGastoPix += t.valor;
+                    if (isCurrentMonth && t.pagamento === 'debito') acc.totalGastoDebito += t.valor;
+                    if (isCurrentMonth && t.pagamento === 'pix') acc.totalGastoPix += t.valor;
                 }
 
-                // Acumula gastos por categoria, ignorando "Pagamento de Fatura"
-                if (t.categoria !== 'Pagamento de Fatura') {
+                // MODIFICAÇÃO PRINCIPAL: Acumula gastos para o orçamento apenas se a transação for do mês atual.
+                if (t.categoria !== 'Pagamento de Fatura' && isCurrentMonth) {
                     expenseByCategory[t.categoria] = (expenseByCategory[t.categoria] || 0) + t.valor;
                 }
             }
@@ -317,7 +354,7 @@ function createTransactionManager(DOM) {
      * Preenche o formulário para editar uma transação.
      */
     const populateFormForEdit = (transaction) => {
-        State.editingId = transaction.id;
+        State.editingId = transaction.id; // Usaremos o ID numérico novamente
         DOM.descricaoInput.value = transaction.descricao;
         DOM.valorInput.value = transaction.valor.toString().replace('.', ',');
         DOM.categoriaInput.value = transaction.categoria;
@@ -344,8 +381,15 @@ function createTransactionManager(DOM) {
         e.preventDefault();
 
         const valor = parseFloat(DOM.valorInput.value.replace(',', '.'));
-        let tipo = document.querySelector('input[name="tipo"]:checked').value;
-        const pagamento = document.querySelector('input[name="forma_pagamento"]:checked').value;
+        const tipo = document.querySelector('input[name="tipo"]:checked').value;
+        
+        // Correção: Obter a forma de pagamento apenas se o tipo for 'despesa'.
+        // Isso evita o erro que impedia o registro de receitas.
+        let pagamento = 'N/A';
+        if (tipo === 'despesa') {
+            const pagamentoRadio = document.querySelector('input[name="forma_pagamento"]:checked');
+            pagamento = pagamentoRadio ? pagamentoRadio.value : 'debito';
+        }
         const descricao = DOM.descricaoInput.value.trim();
         const categoria = DOM.categoriaInput.value;
 
@@ -390,10 +434,6 @@ function createTransactionManager(DOM) {
         }
         // --- Fim da Validação de Saldo ---
 
-        if (categoria === 'Pagamento de Fatura') {
-            tipo = 'despesa';
-        }
-
         let transactionIdToHighlight;
 
         if (State.editingId) {
@@ -428,7 +468,7 @@ function createTransactionManager(DOM) {
     /**
      * Remove uma transação pelo ID.
      */
-    const deleteTransaction = async (id) => {
+    const deleteTransaction = async (id) => { // Mantemos async por causa do showConfirmation
         const confirmed = await showConfirmation('Tem certeza que deseja remover esta transação?');
         if (confirmed) {
             State.transactions = State.transactions.filter(t => t.id !== id);
@@ -441,7 +481,7 @@ function createTransactionManager(DOM) {
     /**
      * Limpa todas as transações.
      */
-    const clearAllTransactions = async () => {
+    const clearAllTransactions = async () => { // Mantemos async por causa do showConfirmation
         if (State.transactions.length === 0) {
             showNotification('Não há transações para limpar.', 'error');
             return;
@@ -1125,20 +1165,209 @@ function createTransactionManager(DOM) {
         renderBalanceChart(metrics, chartFontColor);
     };
 
+    /**
+     */
+    const renderCustomGoals = () => {
+        const metasGrid = document.querySelector('.metas-grid');
+        if (!metasGrid) return;
+
+        metasGrid.innerHTML = ''; // Limpa o container
+        State.customGoals.forEach(goal => {
+            const saved = goal.saved || 0;
+            const target = goal.target;
+            const remaining = Math.max(0, target - saved);
+            const percentage = target > 0 ? (saved / target) * 100 : 0;
+
+            const card = document.createElement('div');
+
+            card.className = 'meta-card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <h3><span class="card-icon">🏁</span> ${goal.name}</h3>
+                    <div class="goal-card-actions">
+                        <button class="delete-goal-btn" data-id="${goal.id}" title="Excluir Meta">🗑️</button>
+                    </div>
+                </div>
+                <div class="savings-progress-container">
+                    <div class="savings-progress-bar">
+                        <div class="savings-progress-fill" style="width: ${Math.min(percentage, 100)}%;"></div>
+                    </div>
+                    <div class="savings-progress-text">
+                        <span>Guardado: <span class="saved-amount">${formatCurrency(saved)}</span></span>
+                        <span>Faltam: <span class="goal-amount">${formatCurrency(remaining)}</span></span>
+                    </div>
+                </div>
+                <div class="meta-card-footer">
+                    <button class="btn-add-to-goal" data-id="${goal.id}">+ Adicionar Dinheiro</button>
+                </div>
+            `;
+            // Adiciona o novo card ao final da grid
+            metasGrid.appendChild(card);
+        });
+    };
+
+    /**
+     * Renderiza os formulários para definir orçamentos.
+     */
+    const renderBudgetForms = () => {
+        if (!DOM.orcamentoFormContainer) return;
+ 
+        const expenseCategories = [
+            "Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Outros"
+        ];
+ 
+        const categoryIcons = {
+            "Alimentação": "🍔",
+            "Transporte": "🚗",
+            "Moradia": "🏠",
+            "Lazer": "🎉",
+            "Saúde": "❤️",
+            "Outros": "📦"
+        };
+ 
+        DOM.orcamentoFormContainer.innerHTML = '';
+ 
+        expenseCategories.forEach(category => {
+            const budgetValue = State.budgets[category] || '';
+            const icon = categoryIcons[category] || '💰';
+            const item = document.createElement('div');
+            item.className = 'orcamento-item';
+            item.innerHTML = `
+                <span class="orcamento-icon">${icon}</span>
+                <label for="budget-${category}">${category}</label>
+                <div class="orcamento-input-wrapper">
+                    <span>R$</span>
+                    <input type="text" inputmode="decimal" id="budget-${category}" placeholder="0,00" value="${budgetValue.toString().replace('.', ',')}" data-category="${category}">
+                </div>
+            `;
+            DOM.orcamentoFormContainer.appendChild(item);
+        });
+
+        DOM.orcamentoFormContainer.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                const category = e.target.dataset.category;
+                const value = parseFloat(e.target.value.replace(',', '.'));
+                if (!isNaN(value) && value > 0) {
+                    State.budgets[category] = value;
+                } else {
+                    delete State.budgets[category]; // Remove o orçamento se o valor for inválido ou zero
+                }
+                saveBudgetsToLocalStorage();
+                updateDOM(); // Atualiza a UI para refletir a mudança no orçamento
+                showNotification(`Orçamento para ${category} atualizado.`, 'info');
+            }
+        });
+    };
+
+    /**
+     * Renderiza o progresso dos orçamentos.
+     */
+    const renderBudgetProgress = () => {
+        if (!DOM.orcamentoProgressoContainer) return;
+
+        const { expenseByCategory } = calculateMetrics();
+        DOM.orcamentoProgressoContainer.innerHTML = '';
+
+        const budgetedCategories = Object.keys(State.budgets);
+
+        if (budgetedCategories.length === 0) {
+            DOM.orcamentoProgressoContainer.innerHTML = '<div class="orcamento-empty-state">Nenhum orçamento definido. Defina limites na seção acima para começar a acompanhar.</div>';
+            return;
+        }
+
+        budgetedCategories.forEach(category => {
+            const budgetLimit = State.budgets[category];
+            const spent = expenseByCategory[category] || 0;
+            const percentage = (spent / budgetLimit) * 100;
+            const remaining = budgetLimit - spent;
+
+            let progressBarClass = '';
+            if (percentage > 90) {
+                progressBarClass = 'perigo';
+            } else if (percentage > 70) {
+                progressBarClass = 'aviso';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'progresso-orcamento-item';
+            item.innerHTML = `
+                <div class="progresso-orcamento-header">
+                    <span>${category}</span>
+                    <span class="progresso-orcamento-valores">
+                        <span class="gasto">${formatCurrency(spent)}</span> / ${formatCurrency(budgetLimit)}
+                    </span>
+                </div>
+                <div class="progresso-orcamento-barra">
+                    <div class="progresso-orcamento-preenchimento ${progressBarClass}" style="width: ${Math.min(percentage, 100)}%;"></div>
+                </div>
+                <p style="text-align: right; font-size: 0.85rem; margin-top: 5px; color: var(--cor-secundaria);">
+                    ${remaining >= 0 ? `${formatCurrency(remaining)} restantes` : `${formatCurrency(Math.abs(remaining))} acima do limite`}
+                </p>
+            `;
+            DOM.orcamentoProgressoContainer.appendChild(item);
+
+            // Alerta proativo
+            if (percentage >= 100 && !sessionStorage.getItem(`alert_${category}_${budgetLimit}`)) {
+                showNotification(`Atenção: Você atingiu o orçamento para ${category}!`, 'error', 6000);
+                sessionStorage.setItem(`alert_${category}_${budgetLimit}`, 'true'); // Evita alertas repetidos na mesma sessão
+            }
+        });
+    };
+
+    const renderMainGoal = () => {
+        if (!DOM.mainGoalContainer) return;
+    
+        const { saldoFinal } = calculateMetrics();
+        const { name, target } = State.mainGoal;
+    
+        // A "economia" é o saldo final, mas não pode ser negativo para o cálculo da meta.
+        const saved = Math.max(0, saldoFinal);
+        const remaining = Math.max(0, target - saved);
+        const percentage = target > 0 ? (saved / target) * 100 : 0;
+    
+        // Seleciona os elementos dentro do container da meta principal
+        const titleEl = DOM.mainGoalContainer.querySelector('#main-goal-title');
+        const savedAmountEl = DOM.mainGoalContainer.querySelector('#savedAmount');
+        const goalAmountEl = DOM.mainGoalContainer.querySelector('#goalAmount');
+        const progressFillEl = DOM.mainGoalContainer.querySelector('#savingsProgressFill');
+    
+        if (titleEl) {
+            titleEl.innerHTML = `<span class="card-icon">🎯</span> ${name}`;
+        }
+        if (savedAmountEl) {
+            savedAmountEl.textContent = formatCurrency(saved);
+        }
+        if (goalAmountEl) {
+            goalAmountEl.textContent = formatCurrency(remaining);
+        }
+        if (progressFillEl) {
+            progressFillEl.style.width = `${Math.min(percentage, 100)}%`;
+        }
+    };
+
     const updateDOM = (options = {}) => {
         renderTransactions(options);
         updateBalance();
         renderFilterSummary();
         renderCharts(); // Atualiza os gráficos junto com o resto da DOM
+        renderBudgetProgress(); // Garante que o progresso do orçamento seja sempre atualizado
+        renderMainGoal(); // Atualiza a meta de economia
+        renderCustomGoals(); // Atualiza as metas personalizadas
     };
 
     const init = () => {
+        // Os dados já são carregados do localStorage na inicialização do State
         // Safely adds listeners, ensuring the absence of an element does not break the application
+
+        // Adiciona os listeners
         if (DOM.formTransacao) DOM.formTransacao.addEventListener('submit', addTransaction);
         if (DOM.cancelEditBtn) DOM.cancelEditBtn.addEventListener('click', resetFormState);
         if (DOM.btnLimparTudo) DOM.btnLimparTudo.addEventListener('click', clearAllTransactions);
         if (DOM.payBillBtnOk) DOM.payBillBtnOk.addEventListener('click', payCreditCardBill);
         if (DOM.btnExportar) DOM.btnExportar.addEventListener('click', exportTransactionsToHTML);
+
+        renderBudgetForms(); // Renderiza os formulários de orçamento na inicialização
+
         if (DOM.btnExportarCSV) DOM.btnExportarCSV.addEventListener('click', exportTransactionsToCSV);
 
         document.addEventListener('click', handleClickOutside);
@@ -1169,7 +1398,7 @@ function createTransactionManager(DOM) {
                 const button = e.target.closest('button');
                 if (!button) return;
 
-                const id = parseInt(button.dataset.id);
+                const id = parseInt(button.dataset.id, 10); // O ID volta a ser um número
                 if (isNaN(id)) return;
 
                 if (button.classList.contains('delete-btn')) {
@@ -1182,6 +1411,154 @@ function createTransactionManager(DOM) {
                 }
             });
         }
+
+        
+    };
+
+    const openSetGoalModal = () => {
+        if (DOM.setGoalModal) {
+            DOM.mainGoalNameInput.value = State.mainGoal.name;
+            DOM.valorMetaInput.value = State.mainGoal.target > 0 ? State.mainGoal.target.toString().replace('.', ',') : '';
+            DOM.setGoalModal.classList.remove('hidden');
+            DOM.mainGoalNameInput.focus();
+        }
+    };
+
+    const saveMainGoal = () => {
+        const name = DOM.mainGoalNameInput.value.trim();
+        const goalValue = parseFloat(DOM.valorMetaInput.value.replace(',', '.'));
+
+        if (!name) {
+            showNotification('O nome da meta não pode estar vazio.', 'error');
+            return;
+        }
+
+        if (!isNaN(goalValue) && goalValue >= 0) {
+            State.mainGoal = { name: name, target: goalValue };
+            saveMainGoalToLocalStorage();
+            showNotification('Meta principal salva com sucesso!', 'success');
+            if (DOM.setGoalModal) DOM.setGoalModal.classList.add('hidden');
+            updateDOM(); // Re-renderiza para mostrar a nova meta
+        } else {
+            showNotification('Por favor, insira um valor válido para a meta.', 'error');
+        }
+    };
+
+    const handleGoalActions = (e) => {
+        const target = e.target;
+        const goalId = parseInt(target.dataset.id, 10);
+
+        if (target.classList.contains('btn-add-to-goal')) {
+            openAddToGoalModal(goalId);
+        } else if (target.classList.contains('delete-goal-btn')) {
+            deleteCustomGoal(goalId);
+        }
+    };
+
+    const openAddToGoalModal = (goalId) => {
+        const goal = State.customGoals.find(g => g.id === goalId);
+        if (!goal || !DOM.addToGoalModal) return;
+
+        State.goalActionTargetId = goalId;
+        DOM.addToGoalMessage.textContent = `Você está adicionando fundos para a meta "${goal.name}".`;
+        DOM.addToGoalValueInput.value = '';
+        DOM.addToGoalModal.classList.remove('hidden');
+        DOM.addToGoalValueInput.focus();
+    };
+
+    const addFundsToCustomGoal = () => {
+        const amount = parseFloat(DOM.addToGoalValueInput.value.replace(',', '.'));
+        const goalId = State.goalActionTargetId;
+
+        if (isNaN(amount) || amount <= 0) {
+            showNotification('Por favor, insira um valor válido.', 'error');
+            return;
+        }
+
+        const { saldoFinal } = calculateMetrics();
+        if (saldoFinal < amount) {
+            showNotification('Saldo em conta insuficiente para fazer esta aplicação.', 'error');
+            return;
+        }
+
+        const goalIndex = State.customGoals.findIndex(g => g.id === goalId);
+        if (goalIndex === -1) {
+            showNotification('Meta não encontrada.', 'error');
+            return;
+        }
+
+        // 1. Cria a transação de despesa
+        const newTransaction = {
+            id: Date.now(),
+            descricao: `Aplicação na meta: ${State.customGoals[goalIndex].name}`,
+            valor: amount,
+            categoria: 'Metas e Objetivos',
+            tipo: 'despesa',
+            pagamento: 'debito', // Assume que o dinheiro sai da conta
+            data: new Date().toISOString()
+        };
+        State.transactions.unshift(newTransaction);
+        saveToLocalStorage();
+
+        // 2. Atualiza o valor guardado na meta
+        State.customGoals[goalIndex].saved += amount;
+        saveCustomGoalsToLocalStorage();
+
+        // 3. Fecha o modal e atualiza a UI
+        if (DOM.addToGoalModal) DOM.addToGoalModal.classList.add('hidden');
+        showNotification(`Valor de ${formatCurrency(amount)} adicionado à meta!`, 'success');
+        updateDOM();
+    };
+
+    const deleteCustomGoal = async (goalId) => {
+        const goal = State.customGoals.find(g => g.id === goalId);
+        if (!goal) return;
+
+        const confirmed = await showConfirmation(`Tem certeza que deseja excluir a meta "${goal.name}"? Esta ação não pode ser desfeita.`);
+        if (confirmed) {
+            State.customGoals = State.customGoals.filter(g => g.id !== goalId);
+            saveCustomGoalsToLocalStorage();
+            showNotification(`Meta "${goal.name}" excluída.`, 'info');
+            updateDOM();
+        }
+    };
+
+
+    const openCreateGoalModal = () => {
+        if (DOM.createGoalModal) {
+            // Limpa os campos do modal
+            DOM.goalNameInput.value = '';
+            DOM.goalTargetValueInput.value = '';
+            DOM.createGoalModal.classList.remove('hidden');
+            DOM.goalNameInput.focus();
+        }
+    };
+
+    const saveNewCustomGoal = () => {
+        const name = DOM.goalNameInput.value.trim();
+        const targetValue = parseFloat(DOM.goalTargetValueInput.value.replace(',', '.'));
+
+        if (!name || isNaN(targetValue) || targetValue <= 0) {
+            showNotification('Por favor, preencha um nome e um valor alvo válido.', 'error');
+            return;
+        }
+
+        const newGoal = {
+            id: Date.now(),
+            name: name,
+            target: targetValue,
+            saved: 0, // Começa com 0 guardado
+        };
+
+        State.customGoals.push(newGoal);
+        saveCustomGoalsToLocalStorage();
+        showNotification(`Meta "${name}" criada com sucesso!`, 'success');
+        if (DOM.createGoalModal) DOM.createGoalModal.classList.add('hidden');
+        updateDOM(); // Re-renderiza a UI para mostrar a nova meta
+    };
+
+    const setValuesVisibility = (isVisible) => {
+        State.valuesVisible = isVisible;
     };
 
     return {
@@ -1190,5 +1567,12 @@ function createTransactionManager(DOM) {
         setFilter, // Expõe a nova função de filtro
         showAllTransactions, // Expõe a nova função
         renderCharts, // Expõe a função de renderizar gráficos
+        setValuesVisibility, // Expõe a nova função para controlar a visibilidade
+        openSetGoalModal,
+        saveMainGoal,
+        openCreateGoalModal,
+        saveNewCustomGoal,
+        handleGoalActions,
+        addFundsToCustomGoal,
     };
 }

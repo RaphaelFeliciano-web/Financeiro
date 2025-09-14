@@ -13,17 +13,22 @@
         <aside class="coluna-lateral">
             <h1>Controle Financeiro</h1>
 
+            <!-- "Lar" permanente para os cards de balanço -->
+            <div id="balanco-container-home">
+                <!-- Os cards serão inseridos aqui via JS -->
+            </div>
+
             <!-- Formulário de Transação -->
             <div class="formulario-transacao">
                 <h2>Adicionar Transação</h2>
                 <form id="formTransacao">
                     <div class="form-group">
                         <label for="descricao">Descrição</label>
-                        <input type="text" id="descricao" placeholder="Ex: Salário, Aluguel" required>
+                        <input type="text" id="descricao" placeholder="Ex: Salário, Aluguel" required aria-required="true">
                     </div>
                     <div class="form-group">
                         <label for="valor">Valor (use vírgula para centavos)</label>
-                        <input type="text" id="valor" placeholder="0,00" required>
+                        <input type="text" id="valor" placeholder="0,00" required aria-required="true" inputmode="decimal">
                     </div>
                     <div class="form-group">
                         <label for="categoria">Categoria</label>
@@ -35,22 +40,21 @@
                             <option value="Lazer">Lazer</option>
                             <option value="Saúde">Saúde</option>
                             <option value="Pagamento de Fatura">Pagamento de Fatura</option>
-                            <option value="Outros">Outros</option>
                         </select>
                     </div>
                     <fieldset class="form-group">
                         <legend>Tipo</legend>
                         <div class="opcoes-radio">
-                            <label><input type="radio" name="tipo" value="receita" checked> Receita</label>
-                            <label><input type="radio" name="tipo" value="despesa"> Despesa</label>
+                            <label for="tipo-receita"><input type="radio" id="tipo-receita" name="tipo" value="receita" checked> Receita</label>
+                            <label for="tipo-despesa"><input type="radio" id="tipo-despesa" name="tipo" value="despesa"> Despesa</label>
                         </div>
                     </fieldset>
-                    <fieldset class="form-group">
-                        <legend>Forma de Pagamento (se despesa)</legend>
+                        <fieldset id="forma-pagamento-fieldset" class="form-group">
+                            <legend>Forma de Pagamento (se despesa)</legend>
                         <div class="opcoes-radio">
-                            <label><input type="radio" name="forma_pagamento" value="debito" checked> Débito/Dinheiro</label>
-                            <label><input type="radio" name="forma_pagamento" value="credito"> Crédito</label>
-                            <label><input type="radio" name="forma_pagamento" value="pix"> Pix</label>
+                            <label for="pagamento-debito"><input type="radio" id="pagamento-debito" name="forma_pagamento" value="debito" checked> Débito/Dinheiro</label>
+                            <label for="pagamento-credito"><input type="radio" id="pagamento-credito" name="forma_pagamento" value="credito"> Crédito</label>
+                            <label for="pagamento-pix"><input type="radio" id="pagamento-pix" name="forma_pagamento" value="pix"> Pix</label>
                         </div>
                     </fieldset>
                     <div class="form-buttons">
@@ -63,25 +67,28 @@
 
         <!-- Coluna Principal (Histórico) -->
         <main class="coluna-principal">
-            <!-- Cards de Balanço -->
-            <div class="balanco-container">
-                <div class="card-balanco">
-                    <h2><span class="card-icon">💰</span> Saldo em Conta</h2>
-                    <p id="saldoAtual">R$ 0,00</p>
-                </div>
-                 <div class="card-balanco divida">
-                    <div class="card-header">
-                        <h2><span class="card-icon">💳</span> Dívida Cartão</h2>
-                        <button id="btnPagarFatura" class="btn-pay-bill" title="Pagar Fatura">Pagar</button>
+            <!-- "Lar" temporário para os cards de balanço em modo de tela cheia -->
+            <div id="balanco-container-fullscreen-target">
+                <div class="balanco-container">
+                    <div class="card-balanco">
+                        <h2><span class="card-icon">💰</span> Saldo em Conta</h2>
+                        <p id="saldoAtual">R$ 0,00</p>
                     </div>
-                    <p id="dividaCartao">R$ 0,00</p>
+                     <div class="card-balanco divida">
+                        <div class="card-header">
+                            <h2><span class="card-icon">💳</span> Dívida Cartão</h2>
+                            <button id="btnPagarFatura" class="btn-pay-bill" title="Pagar Fatura">Pagar</button>
+                        </div>
+                        <p id="dividaCartao">R$ 0,00</p>
+                    </div>
                 </div>
             </div>
-
             <div class="tabs-container">
                 <div class="tabs-nav">
                     <button class="tab-btn active" data-tab="historico">Histórico</button>
                     <button class="tab-btn" data-tab="analise">Análise Gráfica</button>
+                    <button class="tab-btn" data-tab="orcamento">Orçamento</button>
+                    <button class="tab-btn" data-tab="metas">Metas</button>
                 </div>
 
                 <div class="tabs-content">
@@ -90,6 +97,7 @@
                         <div class="historico-header">
                             <h2>Histórico de Transações</h2>
                             <div class="botoes-acao-cabecalho">
+                                <button id="toggle-values-btn" class="btn-theme" title="Ocultar/Mostrar Valores">👁️</button>
                                 <button id="theme-toggle-btn" class="btn-theme" title="Alternar Tema">🌙</button>
                                 <button id="btnExportar" class="btn-exportar" title="Gera um relatório visual em HTML">Relatório (HTML)</button>
                                 <button id="btnExportarCSV" class="btn-secondary" title="Gera uma planilha CSV para Excel">Excel (CSV)</button>
@@ -160,6 +168,50 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Aba de Orçamento (NOVO) -->
+                    <div id="orcamento-content" class="tab-pane">
+                        <h2>Definir Orçamentos Mensais</h2>
+                        <p class="subtitulo-orcamento">Defina um limite de gastos para cada categoria. Os valores são salvos automaticamente.</p>
+                        <div id="orcamento-form-container" class="orcamento-form-grid">
+                            <!-- Os inputs de orçamento serão inseridos aqui via JS -->
+                        </div>
+                
+                        <h2 style="margin-top: 40px;">📊 Acompanhamento do Orçamento</h2>
+                        <p class="subtitulo-orcamento">Veja o progresso dos seus gastos em relação aos limites definidos.</p>
+                        <div id="orcamento-progresso-container">
+                            <!-- O progresso do orçamento será inserido aqui via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Aba de Metas (NOVO) -->
+                    <div id="metas-content" class="tab-pane">
+                        <div class="metas-header">
+                            <h2>🏆 Suas Metas Financeiras</h2>
+                            <button id="btnCriarMeta" class="btn-sucesso">+ Criar Nova Meta</button>
+                        </div>
+                        <p class="subtitulo-orcamento">Defina e acompanhe o progresso da sua meta de economia e de seus objetivos personalizados.</p>
+                        <!-- Meta de Economia Mensal agora está separada e em destaque -->
+                        <div class="meta-card meta-principal">
+                            <div class="card-header">
+                                <h3 id="main-goal-title"><span class="card-icon">🎯</span> Meta de Economia Mensal</h3>
+                                <button id="btnSetGoal" class="btn-set-goal" title="Definir Meta">Definir</button>
+                            </div>
+                            <div class="savings-progress-container">
+                                <div class="savings-progress-bar">
+                                    <div id="savingsProgressFill" class="savings-progress-fill"></div>
+                                </div>
+                                <div class="savings-progress-text">
+                                    <span>Economizado: <span id="savedAmount">R$ 0,00</span></span> <span>Faltam: <span id="goalAmount">R$ 0,00</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Container para as metas personalizadas -->
+                        <div class="metas-grid">
+                            <!-- Metas personalizadas serão inseridas aqui via JS -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -181,12 +233,13 @@
     </template>
 
     <!-- Componentes de UI (Notificação e Modal) -->
-    <div id="notification-container" class="notification-container"></div>
+    <div id="notification-container" class="notification-container" role="alert" aria-live="assertive"></div>
     <div id="confirmation-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3>Confirmação Necessária</h3>
-            <p id="confirmation-message"></p>
-            <div class="confirmation-buttons">
+            <div class="modal-header">
+                <h3 id="confirmation-message">Confirmação Necessária</h3>
+            </div>
+            <div class="modal-footer">
                 <button id="confirm-btn-cancel" class="btn-secondary">Cancelar</button>
                 <button id="confirm-btn-ok" class="btn-perigo">Confirmar</button>
             </div>
@@ -196,15 +249,87 @@
     <!-- Modal para Pagar Fatura -->
     <div id="pay-bill-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3>Pagar Fatura do Cartão</h3>
-            <p>O valor será debitado do seu saldo em conta para abater a dívida do cartão.</p>
-            <div class="form-group" style="text-align: left; margin-top: 20px;">
-                <label for="valor-fatura">Valor do Pagamento</label>
-                <input type="text" id="valor-fatura" placeholder="0,00" required>
+            <div class="modal-header">
+                <h3>Pagar Fatura do Cartão</h3>
+                <p>O valor será debitado do seu saldo em conta para abater a dívida do cartão.</p>
             </div>
-            <div class="confirmation-buttons">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="valor-fatura">Valor do Pagamento</label>
+                    <input type="text" id="valor-fatura" placeholder="0,00" required>
+                </div>
+            </div>
+            <div class="modal-footer">
                 <button id="pay-bill-btn-cancel" class="btn-secondary">Cancelar</button>
                 <button id="pay-bill-btn-ok" class="btn-sucesso">Confirmar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Definir Meta -->
+    <div id="set-goal-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Meta Principal</h3>
+                <p>Defina o nome e o valor da sua meta principal.</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="main-goal-name">Nome da Meta</label>
+                    <input type="text" id="main-goal-name" placeholder="Ex: Economia do Mês" required>
+                </div>
+                <div class="form-group">
+                    <label for="valor-meta">Valor da Meta</label>
+                    <input type="text" id="valor-meta" placeholder="0,00" required inputmode="decimal">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="set-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button id="set-goal-btn-ok" class="btn-sucesso">Salvar Meta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Criar Meta Personalizada -->
+    <div id="create-goal-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Criar Nova Meta</h3>
+                <p>Defina um objetivo e o valor que você precisa economizar.</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="goal-name">Nome da Meta</label>
+                    <input type="text" id="goal-name" placeholder="Ex: Viagem para a praia" required>
+                </div>
+                <div class="form-group">
+                    <label for="goal-target-value">Valor Alvo</label>
+                    <input type="text" id="goal-target-value" placeholder="0,00" required inputmode="decimal">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="create-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button id="create-goal-btn-ok" class="btn-sucesso">Salvar Meta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Adicionar Fundos a uma Meta -->
+    <div id="add-to-goal-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Adicionar Fundos à Meta</h3>
+                <p id="add-to-goal-message">O valor será debitado do seu saldo e adicionado à meta.</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="add-to-goal-value">Valor a Adicionar</label>
+                    <input type="text" id="add-to-goal-value" placeholder="0,00" required inputmode="decimal">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="add-to-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button id="add-to-goal-btn-ok" class="btn-sucesso">Confirmar</button>
             </div>
         </div>
     </div>
