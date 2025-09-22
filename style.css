@@ -1,0 +1,1173 @@
+/* --- Variáveis de Cores e Estilos Globais --- */
+:root {
+    --cor-fundo: #f4f7fa; /* Light theme background */
+    --cor-texto: #333;
+    --cor-primaria: #4a90e2;
+    --cor-sucesso: #50e3c2;
+    --cor-perigo: #e35050;
+    --cor-aviso: #f5a623;
+    --cor-secundaria: #5f6469;
+    --cor-cartao: #fff; /* Light theme card background */
+    --cor-borda: #e0e0e0;
+    --sombra-cartao: 0 2px 8px rgba(0,0,0,0.07);
+    --raio-borda: 8px;
+    --sombra-cartao-hover: 0 10px 20px rgba(0,0,0,0.08);
+    --grid-transacoes-desktop: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+}
+
+/* --- Reset e Base --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+[data-theme="dark"] {
+    --cor-fundo: #1a1a2e;
+    --cor-texto: #e0e0e0;
+    --cor-primaria: #5a9ee2;
+    --cor-secundaria: #868e96;
+    --cor-cartao: #162447;
+    --cor-borda: #334;
+    --sombra-cartao: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --sombra-cartao-hover: 0 10px 20px rgba(0,0,0,0.25);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+    transition: background-color 0.3s, color 0.3s;
+    line-height: 1.6;
+}
+
+/* --- Layout Principal --- */
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 0 15px;
+    gap: 30px;
+    flex-direction: column-reverse; /* Mobile-first: colunas empilhadas */
+    transition: max-width 0.4s ease-in-out, padding 0.4s ease-in-out;
+}
+
+.coluna-principal {
+    flex: 1;
+    min-width: 0; /* Permite que a coluna encolha */
+}
+
+.coluna-lateral {
+    flex: 1;
+    min-width: 0; /* Permite que a coluna encolha em telas pequenas */
+    transition: min-width 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.4s ease-in-out;
+    overflow: hidden; /* Esconde o conteúdo durante a transição */
+    padding: 0 10px; /* Adiciona um respiro lateral para a rolagem interna */
+}
+
+/* Quando em modo de tela cheia, o container se expande */
+.container.fullscreen-mode {
+    max-width: 1800px;
+}
+
+h1, h2 {
+    color: var(--cor-texto);
+    margin-bottom: 1rem;
+}
+
+/* --- Abas de Navegação (Tabs) --- */
+.tabs-container {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.tabs-nav {
+    display: flex;
+    border-bottom: 2px solid var(--cor-borda);
+    margin-bottom: 20px;
+    overflow-x: auto; /* Permite rolagem horizontal em telas pequenas */
+    white-space: nowrap; /* Impede que os botões quebrem linha */
+    padding-bottom: 10px; /* Espaço para a barra de rolagem não colar no conteúdo */
+}
+
+/* Estilização sutil da barra de rolagem para navegadores Webkit (Chrome, Safari, etc.) */
+.tabs-nav::-webkit-scrollbar,
+.filtros-transacoes::-webkit-scrollbar {
+    height: 6px; /* Altura da barra */
+}
+
+.tabs-nav::-webkit-scrollbar-thumb,
+.filtros-transacoes::-webkit-scrollbar-thumb {
+    background-color: var(--cor-borda); /* Cor da barra de rolagem */
+    border-radius: 3px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+    transition: all 0.3s ease;
+    margin-bottom: -2px; /* Alinha com a borda inferior */
+}
+
+.tab-btn:hover {
+    color: var(--cor-primaria);
+}
+
+.tab-btn.active {
+    color: var(--cor-primaria);
+    border-bottom-color: var(--cor-primaria);
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* --- Seções de Conteúdo nas Abas --- */
+.content-section {
+    background-color: var(--cor-fundo);
+    padding: 25px;
+    border-radius: var(--raio-borda);
+    margin-bottom: 30px;
+    border: 1px solid var(--cor-borda);
+}
+
+.content-section:last-child {
+    margin-bottom: 0;
+}
+
+.card-balanco {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-balanco:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+}
+
+.card-balanco h2 {
+    font-size: 1rem;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+    display: flex;
+    align-items: center;
+}
+
+.card-balanco p {
+    font-size: 2.2rem;
+    /* Use clamp for fluid typography: min, preferred, max */
+    font-size: clamp(1.7rem, 5vw, 2.2rem);
+    font-weight: 600;
+    text-align: right;
+    margin-top: 10px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h2 {
+    margin-bottom: 0;
+}
+
+.card-icon {
+    font-size: 1.5rem;
+    margin-right: 12px;
+    line-height: 1;
+}
+
+.btn-pay-bill {
+    background-color: var(--cor-aviso);
+    color: white;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    border-radius: 6px;
+}
+
+/* Cores dinâmicas para os cards de balanço */
+.card-balanco.positivo p {
+    color: var(--cor-sucesso);
+}
+
+.card-balanco.negativo p {
+    color: var(--cor-perigo);
+}
+
+.card-balanco.neutro p {
+    color: var(--cor-texto);
+}
+
+.grafico-grande {
+    grid-column: 1 / -1; /* Ocupa a linha inteira */
+}
+
+.analise-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.analise-resumo-item {
+    background-color: var(--cor-fundo);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    text-align: center;
+}
+
+.analise-resumo-item h4 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.analise-resumo-item p {
+    font-size: 1.6rem;
+    font-weight: bold;
+}
+
+.health-status-card p {
+    font-size: 1rem;
+    font-style: italic;
+    font-weight: 500;
+}
+
+.grafico-com-lista {
+    display: flex;
+    flex-direction: column; /* Padrão mobile-first: empilhado */
+    gap: 25px;
+}
+
+.grafico-container {
+    flex: 1.2; /* Dá um pouco mais de espaço para o gráfico */
+    min-width: 0; /* Previne que o gráfico encolha demais */
+    position: relative; /* Necessário para o Chart.js responsivo */
+    height: 250px; /* Altura padrão para mobile */
+}
+
+.grafico-grande .grafico-container {
+    height: 320px; /* Altura maior para o gráfico de barras */
+}
+
+/* --- Lista Detalhada (ao lado dos gráficos) --- */
+.lista-detalhada {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px; /* Limita a altura em telas móveis */
+    overflow-y: auto; /* Adiciona rolagem se a lista for longa */
+    padding-right: 5px; /* Espaço para a barra de rolagem */
+}
+
+.lista-detalhada-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 5px;
+    border-bottom: 1px solid var(--cor-borda);
+}
+
+.lista-detalhada-cor {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0; /* Impede que o ponto encolha */
+}
+
+.lista-detalhada-item:last-child {
+    border-bottom: none;
+}
+
+.lista-detalhada-valor {
+    font-weight: bold;
+    color: var(--cor-perigo);
+    white-space: nowrap; /* Impede que o valor quebre a linha */
+    padding-left: 10px;
+}
+
+.lista-detalhada-categoria {
+    flex-grow: 1;
+    margin-left: 10px;
+}
+
+.lista-detalhada-item.receita .lista-detalhada-valor {
+    color: var(--cor-sucesso);
+}
+
+.grafico-card {
+  
+    border-radius: var(--raio-borda);
+    background-color: var(--cor-cartao);
+    padding: 25px; /* Adiciona um padding interno para dar respiro */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.grafico-card h3 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: 500;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.grafico-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--sombra-cartao-hover);
+}
+
+.chart-empty-state {
+    display: flex;
+    flex-direction: column; /* Empilha o ícone e o texto */
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    color: var(--cor-secundaria);
+    font-style: italic;
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* Ícone para o estado vazio */
+.chart-empty-state::before {
+    content: '📊';
+    font-size: 3.5rem;
+    margin-bottom: 15px;
+    display: block;
+    filter: grayscale(80%);
+}
+
+.grafico-grande .chart-empty-state {
+    min-height: 320px; /* Mantém a altura do card consistente */
+}
+
+fieldset {
+    border: none;
+    padding: 0;
+}
+
+.opcoes-radio {
+    display: flex;
+    gap: 15px;
+}
+
+.opcoes-radio input[type="radio"] {
+    margin-right: 5px;
+}
+
+/* --- Botões --- */
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.2s, box-shadow 0.2s;
+    outline: none; /* Remove o outline padrão para usar o box-shadow */
+}
+
+/* Estilo de foco acessível para todos os botões */
+button:focus-visible {
+    box-shadow: 0 0 0 2px var(--cor-fundo), 0 0 0 4px var(--cor-primaria);
+}
+
+button:hover {
+    opacity: 0.85;
+}
+
+#addTransactionBtn {
+    width: 100%;
+    background-color: var(--cor-primaria);
+    color: white;
+    padding: 12px;
+    font-size: 1rem;
+}
+
+.btn-perigo { background-color: var(--cor-perigo); color: white; }
+.btn-secondary { background-color: var(--cor-secundaria); color: white; }
+.btn-sucesso { background-color: var(--cor-sucesso); color: white; }
+.btn-exportar { background-color: var(--cor-sucesso); color: white; }
+.btn-toggle-grafico { background-color: var(--cor-primaria); color: white; margin-bottom: 20px; }
+.btn-theme { background: none; font-size: 1.5rem; padding: 0 10px; }
+
+/* --- Lista de Transações --- */
+.label-with-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    border-radius: 50%;
+    opacity: 0.7;
+}
+
+.btn-icon:hover {
+    background-color: var(--cor-fundo);
+    opacity: 1;
+}
+
+.category-manager-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-borda);
+}
+
+.category-manager-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--cor-borda);
+    gap: 10px;
+}
+
+.category-manager-item:last-child {
+    border-bottom: none;
+}
+
+.category-manager-item span {
+    flex-grow: 1;
+}
+
+.category-manager-item .actions button {
+    font-size: 1rem;
+    padding: 5px 8px;
+}
+
+.category-manager-item input[type="text"] {
+    flex-grow: 1;
+}
+
+.add-category-form {
+    display: flex;
+    gap: 10px;
+}
+
+.historico-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.botoes-acao-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filtros-transacoes {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 10px; /* Espaço para a barra de rolagem */
+    overflow-x: auto; /* Permite rolagem horizontal */
+    white-space: nowrap; /* Impede que os botões quebrem linha */
+    border-bottom: 1px solid var(--cor-borda);
+}
+
+.search-container {
+    margin-bottom: 15px;
+}
+
+#search-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-borda);
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-size: 1rem;
+}
+
+.filtro-btn {
+    background-color: transparent;
+    color: var(--cor-secundaria);
+    border: 1px solid var(--cor-borda);
+    font-weight: 500;
+}
+
+.filtro-btn.active, .filtro-btn:hover {
+    background-color: var(--cor-primaria);
+    color: white;
+    border-color: var(--cor-primaria);
+    opacity: 1;
+}
+
+.filtro-resumo {
+    background-color: var(--cor-fundo);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    border: 1px solid var(--cor-borda);
+}
+
+.resumo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.resumo-item {
+    text-align: center;
+    padding: 10px 15px;
+    border-radius: 4px;
+    background-color: var(--cor-cartao);
+    flex-grow: 1;
+    min-width: 150px; /* Garante que os itens não fiquem muito espremidos */
+}
+
+.resumo-item h4 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+    margin-bottom: 5px;
+}
+
+.resumo-item p {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.transacoes-header {
+    display: grid;
+    grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: var(--grid-transacoes-desktop);
+    font-weight: bold;
+    padding: 10px 15px;
+    border-bottom: 2px solid var(--cor-borda);
+    margin-bottom: 10px;
+}
+
+#transacoesLista li {
+    display: grid;
+    /* Layout mobile-first para a lista de transações */
+    grid-template-columns: 2fr 1fr 1fr;
+    align-items: center;
+    padding: 10px 15px;
+    border-left: 5px solid var(--category-color, var(--cor-borda)); /* Barra de cor da categoria */
+    border-bottom: 1px solid var(--cor-borda);
+    gap: 10px;
+    transition: border-left-color 0.3s ease;
+}
+
+.col-data, .col-categoria, .col-pagamento {
+    display: none; /* Esconde colunas em telas pequenas por padrão */
+}
+
+#transacoesLista li:hover {
+    background-color: var(--cor-fundo);
+}
+
+#transacoesLista li:last-child {
+    border-bottom: none;
+}
+
+#transacoesLista li.receita .col-valor { color: var(--cor-sucesso); }
+#transacoesLista li.despesa .col-valor { color: var(--cor-perigo); }
+.resumo-item .receita { color: var(--cor-sucesso); }
+.resumo-item .despesa { color: var(--cor-perigo); }
+
+
+.col-acoes { text-align: right; }
+.col-acoes button { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 5px; }
+.delete-btn:hover { color: var(--cor-perigo); }
+.edit-btn:hover { color: var(--cor-primaria); }
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--cor-secundaria);
+}
+
+.historico-footer {
+    text-align: center;
+    /* Adiciona o espaço abaixo da lista quando o botão aparece */
+    padding: 20px 0;
+    margin-top: 10px;
+}
+
+#btnMostrarMais {
+    width: 50%;
+    max-width: 250px;
+}
+
+/* --- Modal e Notificações --- */
+/* Classe .hidden para esconder elementos de forma acessível quando necessário */
+.coluna-lateral.hidden {
+    min-width: 0; opacity: 0; padding: 0;
+}
+.hidden {
+    display: none;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%; /* Ocupa a tela toda */
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.6); /* Fundo semi-transparente */
+    display: flex; /* Para centralizar o conteúdo */
+    align-items: center;
+    justify-content: center;
+    padding: 20px; /* Espaçamento para não colar nas bordas */
+    opacity: 0; /* Começa invisível para animação */
+    transition: opacity 0.3s ease;
+    pointer-events: none; /* Começa sem capturar eventos */
+}
+
+.modal-overlay:not(.hidden) {
+    opacity: 1; /* Fica visível */
+    pointer-events: auto; /* Captura eventos */
+}
+
+.modal-content {
+    background-color: var(--cor-cartao);
+    border-radius: var(--raio-borda);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    width: 100%; /* Ocupa a largura disponível no padding do overlay */
+    max-width: 500px; /* Largura máxima */
+    padding: 25px 30px;
+    display: block; /* Volta a ser block para empilhar conteúdo */
+    transform: scale(0.95); /* Começa um pouco menor para animação */
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal-overlay:not(.hidden) .modal-content {
+    transform: scale(1); /* Volta ao tamanho normal */
+    opacity: 1;
+}
+
+/* Estrutura interna do Modal */
+.modal-header h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--cor-texto);
+}
+
+.modal-header p {
+    margin-bottom: 20px;
+    color: var(--cor-secundaria);
+    line-height: 1.5;
+}
+
+.modal-body {
+    margin-bottom: 25px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end; /* Alinha os botões à direita */
+    gap: 10px;
+}
+
+.modal-footer #delete-goal-from-modal-btn {
+    margin-right: auto; /* Empurra o botão de excluir para a esquerda */
+}
+
+/* Ajuste específico para o modal de confirmação que só tem um título e botões */
+#confirmation-modal .modal-header h3 {
+    margin-bottom: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+#confirmation-modal .modal-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 550px;
+}
+
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: var(--cor-cartao);
+    color: var(--cor-texto);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1), 0 2px 5px rgba(0,0,0,0.05);
+    min-width: 320px;
+    max-width: 400px;
+    border-left: 5px solid;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.success { border-color: var(--cor-sucesso); }
+.toast.error { border-color: var(--cor-perigo); }
+.toast.info { border-color: var(--cor-primaria); }
+
+.toast-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.toast.success .toast-icon { color: var(--cor-sucesso); }
+.toast.error .toast-icon { color: var(--cor-perigo); }
+.toast.info .toast-icon { color: var(--cor-primaria); }
+
+.toast-message {
+    flex-grow: 1;
+    margin: 0;
+    padding-right: 15px;
+}
+
+.toast-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: var(--cor-secundaria);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.toast-close:hover {
+    color: var(--cor-texto);
+}
+
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background-color: var(--cor-primaria);
+    animation: progress-bar linear forwards;
+}
+
+@keyframes progress-bar {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+.toast.success .toast-progress { background-color: var(--cor-sucesso); }
+.toast.error .toast-progress { background-color: var(--cor-perigo); }
+.toast.info .toast-progress { background-color: var(--cor-primaria); }
+
+/* --- Metas Financeiras (NOVO) --- */
+.meta-card {
+}
+
+.meta-progresso-barra {
+    width: 100%;
+    height: 20px;
+    background-color: var(--cor-borda);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.meta-progresso-preenchimento {
+    width: 0%; /* Será atualizado via JS */
+    height: 100%;
+    background-color: var(--cor-sucesso);
+    transition: width 0.5s ease-in-out;
+}
+
+/* --- Orçamento --- */
+.subtitulo-orcamento {
+    color: var(--cor-secundaria);
+    margin-top: -15px;
+    margin-bottom: 20px;
+}
+
+.orcamento-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.orcamento-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--cor-cartao);
+    padding: 15px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.orcamento-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-cartao-hover);
+}
+
+.orcamento-icon {
+    font-size: 1.5rem;
+    margin-right: 15px;
+}
+
+.orcamento-item label {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.orcamento-input-wrapper {
+    display: flex;
+    align-items: center;
+    background-color: var(--cor-fundo);
+    border-radius: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--cor-borda);
+}
+
+.orcamento-input-wrapper span {
+    font-weight: bold;
+    color: var(--cor-secundaria);
+    margin-right: 5px;
+}
+
+.orcamento-item input {
+    width: 80px;
+    text-align: right;
+    font-weight: bold;
+    background-color: transparent;
+    border: none;
+    color: var(--cor-texto);
+    font-size: 1rem;
+}
+
+.orcamento-item input:focus {
+    outline: none;
+}
+
+#orcamento-progresso-container {
+    display: grid;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.orcamento-empty-state {
+    background-color: var(--cor-fundo);
+    padding: 30px;
+    text-align: center;
+    border-radius: var(--raio-borda);
+    color: var(--cor-secundaria);
+    font-style: italic;
+}
+
+.progresso-orcamento-item {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.progresso-orcamento-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.progresso-orcamento-valores {
+    font-size: 0.9rem;
+    color: var(--cor-secundaria);
+}
+
+.progresso-orcamento-valores .gasto {
+    color: var(--cor-texto);
+    font-weight: bold;
+}
+
+.progresso-orcamento-barra {
+    width: 100%;
+    height: 14px;
+    background-color: var(--cor-borda);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progresso-orcamento-preenchimento {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cor-sucesso), #45c4a8);
+    border-radius: 6px;
+    transition: width 0.5s ease-in-out;
+}
+
+/* Cores da barra de progresso */
+.progresso-orcamento-preenchimento.aviso {
+    background: linear-gradient(90deg, var(--cor-aviso), #e69500);
+}
+.progresso-orcamento-preenchimento.perigo {
+    background: linear-gradient(90deg, var(--cor-perigo), #c9302c);
+}
+
+/* --- Meta de Economia --- */
+.btn-set-goal {
+    background-color: var(--cor-secundaria);
+    color: white;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    border-radius: 6px;
+}
+
+.savings-progress-container {
+    margin-top: 15px;
+}
+
+.savings-progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: var(--cor-borda);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.savings-progress-fill {
+    height: 100%;
+    width: 0%; /* Será atualizado via JS */
+    background: linear-gradient(90deg, var(--cor-primaria), #6caff5);
+    border-radius: 10px;
+    transition: width 0.5s ease-in-out;
+}
+
+.savings-progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--cor-secundaria);
+}
+
+#savedAmount {
+    color: var(--cor-texto);
+    font-weight: bold;
+}
+
+/* --- Seção de Metas --- */
+.metas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: -10px; /* Ajusta o espaço com o subtítulo */
+}
+.metas-header .btn-sucesso {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
+
+
+.meta-card .card-header {
+    /* Adiciona espaço abaixo do cabeçalho do card de meta */
+    margin-bottom: 15px;
+}
+
+.meta-card {
+    background-color: var(--cor-cartao);
+    padding: 20px;
+    border-radius: var(--raio-borda);
+    box-shadow: var(--sombra-cartao);
+    /* Adiciona margem para separar os cards quando não estão em um grid */
+    margin-bottom: 20px;
+    /* Adiciona transição para suavizar efeitos como o de arrastar */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease;
+}
+
+.meta-card.dragging {
+    opacity: 0.5;
+    transform: scale(1.02);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+}
+
+.meta-card.drag-over {
+    border-top: 3px dashed var(--cor-primaria);
+    transform: translateY(5px);
+}
+
+
+.custom-goals-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+    margin-bottom: 20px; /* Espaço extra no final da lista */
+}
+
+.goals-selection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-borda);
+}
+
+.goals-selection-list label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.goals-selection-list label:hover { background-color: var(--cor-fundo); }
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.meta-card.meta-principal {
+    /* Garante que a meta principal não entre no grid */
+    grid-column: 1 / -1; 
+}
+
+.meta-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0; /* A margem agora é controlada pelo .card-header */
+}
+
+/* Reutilizando estilos da barra de progresso de economia */
+.meta-card .savings-progress-bar {
+    height: 10px;
+}
+
+.meta-card .savings-progress-text {
+    font-size: 0.85rem;
+}
+
+.btn-edit-goal {
+    background-color: var(--cor-secundaria);
+    color: white;
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+}
+
+.btn-add-to-goal {
+    background-color: var(--cor-primaria); /* Cor de fundo */
+    color: white; /* Cor do texto */
+    padding: 5px 12px; /* Espaçamento interno menor */
+    font-size: 0.85rem; /* Fonte menor */
+    border-radius: 6px; /* Borda arredondada */
+    white-space: nowrap; /* Impede que o texto quebre */
+}
+
+/* Tag para categoria do investimento */
+.meta-category-display {
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: white; /* Garante que o texto seja legível */
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 15px;
+    display: inline-block;
+    transition: background-color 0.3s, color 0.3s; /* Transição suave */
+}
+
+/* --- Layout Compacto para Metas/Investimentos --- */
+.meta-card.compact {
+    padding: 12px; /* Padding geral menor */
+}
+
+.grafico-card.grafico-grande {
+    height: auto; /* Permite que o gráfico se ajuste ao conteúdo */
+}
+
+.meta-card.compact .card-header {
+    margin-bottom: 10px; /* Espaço menor abaixo do cabeçalho */
+}
+
+.meta-card-body {
+    display: flex; /* Alinha o progresso e o botão lado a lado */
+    align-items: center; /* Centraliza verticalmente */
+    gap: 10px; /* Espaço entre o progresso e o botão */
+}
+
+.meta-card-body .savings-progress-container {
+    flex-grow: 1; /* Faz o container de progresso ocupar o espaço disponível */
+    margin-top: 0; /* Remove a margem superior que não é mais necessária */
+}
+
+/* Novo: Grid flexível para os gráficos */
+.graficos-grid,
+.investimentos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+/* Media Query para telas maiores, ajustando os grids de gráficos */
+@media (min-width: 1200px) {
+    .graficos-grid,
+    .investimentos-grid {
+        grid-template-columns: 1fr 1fr; /* Duas colunas em telas largas */
+    }
+}

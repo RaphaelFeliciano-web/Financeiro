@@ -1,0 +1,144 @@
+/*
+  Arquivo de Estilos Responsivos
+  ----------------------------------
+  Este arquivo contém todas as regras @media para adaptar o layout a
+  diferentes tamanhos de tela, seguindo a abordagem Mobile-First.
+*/
+
+/* --- Telas Pequenas (Celulares em paisagem e tablets pequenos) --- */
+@media (min-width: 576px) {
+    .app-header {
+        padding: 0 25px;
+    }
+}
+
+/* --- Telas Médias (Tablets) --- */
+@media (min-width: 768px) {
+    /* Em telas de tablet, os cards de resumo já podem ficar menores */
+    .analise-resumo {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+}
+
+/* --- Telas Grandes (Desktops) --- */
+@media (min-width: 992px) {
+    /* Ajusta o tamanho das fontes principais para melhor legibilidade */
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.4rem; }
+    .card-balanco p { 
+        font-size: clamp(1.6rem, 6vw, 2rem); 
+        text-align: right; /* Alinha o valor à direita em telas maiores */
+    }
+
+    /* Layout da lista de transações para desktop */
+    .transacoes-header,
+    #transacoesLista li {
+        display: grid;
+        grid-template-columns: var(--grid-transacoes-desktop);
+    }
+
+    .transacao-info {
+        /* No desktop, o .transacao-info é apenas um container para a descrição */
+        display: contents; /* Faz o wrapper ser ignorado pelo grid layout */
+    }
+
+    .col-data, .col-categoria, .col-pagamento {
+        display: block; /* Mostra as colunas escondidas em mobile */
+    }
+
+    .tag-categoria-mobile {
+        display: none; /* Esconde a tag de categoria mobile */
+    }
+
+    /* Layout do resumo da análise para desktop */
+    .analise-resumo {
+        grid-template-columns: repeat(4, 1fr); /* 4 colunas iguais */
+    }
+
+    /* Reverte o empilhamento do cabeçalho de metas */
+    .metas-header {
+        flex-direction: row;
+        align-items: center;
+        gap: 15px;
+    }
+
+    /* Reverte o empilhamento do texto de progresso */
+    .savings-progress-text {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* Ajuste para o modal de confirmação */
+    #confirmation-modal .modal-content {
+        flex-direction: row;
+        gap: 15px;
+    }
+}
+
+/* --- Telas Muito Grandes (Monitores Largos) --- */
+@media (min-width: 1200px) {
+    .graficos-grid,
+    .investimentos-grid {
+        grid-template-columns: 1fr 1fr; /* Força duas colunas para evitar que fiquem muito largas */
+    }
+}
+
+/* --- Telas Extra Grandes (Monitores Largos) --- */
+@media (min-width: 1440px) {
+    .container {
+        max-width: 1600px;
+        gap: 40px;
+        padding: 0 30px;
+    }
+
+    .card-balanco p {
+        font-size: 1.8rem;
+    }
+}
+
+/* Ajustes para telas onde o menu superior pode não caber */
+@media (max-width: 820px) {
+    .header-logo {
+        order: 1;
+    }
+
+    .top-nav {
+        /* Transforma em um menu dropdown vertical */
+        position: fixed;
+        top: 60px; /* Abaixo do cabeçalho */
+        left: 0;
+        right: 0;
+        background-color: var(--cor-cartao);
+        flex-direction: column;
+        align-items: stretch; /* Botões ocupam 100% da largura */
+        padding: 10px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        
+        /* Escondido por padrão */
+        transform: translateY(-110%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out;
+    }
+
+    .top-nav.nav-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .top-nav .nav-btn {
+        text-align: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--cor-borda);
+        border-radius: 0;
+    }
+
+    .top-nav .nav-btn.active {
+        background-color: var(--cor-fundo);
+    }
+
+    .hamburger-btn { display: block; }
+    .app-header { padding: 0 15px; }
+}

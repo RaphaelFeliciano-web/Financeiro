@@ -5,100 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador Financeiro</title>
     <link rel="stylesheet" href="src/css/style.css">
+    <link rel="stylesheet" href="src/css/reset.css">
+    <link rel="stylesheet" href="src/css/responsive.css">
 </head>
 <body>
 
-    <div class="container">
-        <!-- Coluna Lateral (Formulário e Saldos) -->
-        <aside class="coluna-lateral">
-            <h1>Controle Financeiro</h1>
-
-            <!-- "Lar" permanente para os cards de balanço -->
-            <div id="balanco-container-home">
-                <!-- Os cards serão inseridos aqui via JS -->
+    <div class="app-wrapper">
+        <!-- NOVO CABEÇALHO SUPERIOR FIXO -->
+        <header class="app-header">
+            <div class="header-logo">
+                <h2>Financeiro</h2>
             </div>
-
-            <!-- Formulário de Transação -->
-            <div class="formulario-transacao">
-                <h2>Adicionar Transação</h2>
-                <form id="formTransacao">
-                    <div class="form-group">
-                        <label for="descricao">Descrição</label>
-                        <input type="text" id="descricao" placeholder="Ex: Salário, Aluguel" required aria-required="true">
-                    </div>
-                    <div class="form-group">
-                        <label for="valor">Valor (use vírgula para centavos)</label>
-                        <input type="text" id="valor" placeholder="0,00" required aria-required="true" inputmode="decimal">
-                    </div>
-                    <div class="form-group">
-                        <label for="categoria">Categoria</label>
-                        <select id="categoria">
-                            <option value="Salário">Salário</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Moradia">Moradia</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Saúde">Saúde</option>
-                            <option value="Pagamento de Fatura">Pagamento de Fatura</option>
-                        </select>
-                    </div>
-                    <fieldset class="form-group">
-                        <legend>Tipo</legend>
-                        <div class="opcoes-radio">
-                            <label for="tipo-receita"><input type="radio" id="tipo-receita" name="tipo" value="receita" checked> Receita</label>
-                            <label for="tipo-despesa"><input type="radio" id="tipo-despesa" name="tipo" value="despesa"> Despesa</label>
-                        </div>
-                    </fieldset>
-                        <fieldset id="forma-pagamento-fieldset" class="form-group">
-                            <legend>Forma de Pagamento (se despesa)</legend>
-                        <div class="opcoes-radio">
-                            <label for="pagamento-debito"><input type="radio" id="pagamento-debito" name="forma_pagamento" value="debito" checked> Débito/Dinheiro</label>
-                            <label for="pagamento-credito"><input type="radio" id="pagamento-credito" name="forma_pagamento" value="credito"> Crédito</label>
-                            <label for="pagamento-pix"><input type="radio" id="pagamento-pix" name="forma_pagamento" value="pix"> Pix</label>
-                        </div>
-                    </fieldset>
-                    <div class="form-buttons">
-                        <button type="submit" id="addTransactionBtn">Adicionar Transação</button>
-                        <button type="button" id="cancelEditBtn" class="btn-secondary hidden">Cancelar Edição</button>
-                    </div>
-                </form>
+            <button class="hamburger-btn" aria-label="Abrir menu" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <nav class="top-nav">
+                <button class="nav-btn active" data-page="dashboard">Início</button>
+                <button class="nav-btn" data-page="analise">Análise</button>
+                <button class="nav-btn" data-page="orcamento">Orçamento</button>
+                <button class="nav-btn" data-page="metas">Metas</button>
+                <button class="nav-btn" data-page="investimentos">Investimentos</button>
+            </nav>
+            <div class="header-actions">
+                <button id="toggle-values-btn" class="btn-theme" title="Ocultar/Mostrar Valores">👁️</button>
+                <button id="theme-toggle-btn" class="btn-theme" title="Alternar Tema">🌙</button>
             </div>
-        </aside>
-
-        <!-- Coluna Principal (Histórico) -->
-        <main class="coluna-principal">
-            <!-- "Lar" temporário para os cards de balanço em modo de tela cheia -->
-            <div id="balanco-container-fullscreen-target">
-                <div class="balanco-container">
-                    <div class="card-balanco">
-                        <h2><span class="card-icon">💰</span> Saldo em Conta</h2>
-                        <p id="saldoAtual">R$ 0,00</p>
-                    </div>
-                     <div class="card-balanco divida">
-                        <div class="card-header">
-                            <h2><span class="card-icon">💳</span> Dívida Cartão</h2>
-                            <button id="btnPagarFatura" class="btn-pay-bill" title="Pagar Fatura">Pagar</button>
+        </header>
+        <!-- O container principal agora envolve tudo, exceto os modais -->
+        <div class="container">
+            <!-- Coluna Principal (agora chamada de main-content) -->
+            <main class="main-content">
+                <!-- Cada "página" corresponde a um item da navegação inferior -->
+                <div id="dashboard-page" class="page active">
+                    <div class="page-header">
+                        <h1>Dashboard</h1>
+                        <div class="header-actions">
                         </div>
-                        <p id="dividaCartao">R$ 0,00</p>
                     </div>
-                </div>
-            </div>
-            <div class="tabs-container">
-                <div class="tabs-nav">
-                    <button class="tab-btn active" data-tab="historico">Histórico</button>
-                    <button class="tab-btn" data-tab="analise">Análise Gráfica</button>
-                    <button class="tab-btn" data-tab="orcamento">Orçamento</button>
-                    <button class="tab-btn" data-tab="metas">Metas</button>
-                </div>
-
-                <div class="tabs-content">
-                    <!-- Aba de Histórico -->
-                    <div id="historico-content" class="tab-pane active">
+                    <!-- Container para os cards de balanço -->
+                    <div id="balanco-container-home" class="balanco-container-wrapper">
+                        <div class="balanco-container">
+                            <div class="card-balanco">
+                                <div class="card-header">
+                                    <h2><svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="currentColor"/></svg> Saldo em Conta</h2>
+                                </div>
+                                <p id="saldoAtual">R$ 0,00</p>
+                            </div>
+                             <div class="card-balanco divida">
+                                <div class="card-header">
+                                    <h2><svg class="card-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" fill="currentColor"/></svg> Dívida Cartão</h2>
+                                    <button id="btnPagarFatura" class="btn-pay-bill" title="Pagar Fatura">Pagar</button>
+                                </div>
+                                <p id="dividaCartao">R$ 0,00</p>
+                            </div>
+                            <div class="card-balanco">
+                                <div class="card-header">
+                                    <h2><svg class="card-icon" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-1.45-5c.75 0 1.41-.41 1.75-1.03l3.58-6.49A.996.996 0 0020.01 4H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C8.52 15.37 9.2 16 10 16h9v-2h-9l1.1-2h7.45zM6.16 6h12.15l-2.76 5H8.53L6.16 6z" fill="currentColor"/></svg> Receitas do Mês</h2>
+                                </div>
+                                <p id="receitasMes" class="positivo">R$ 0,00</p>
+                            </div>
+                            <div class="card-balanco">
+                                <div class="card-header">
+                                    <h2><svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM17 13H7v-2h10v2z" fill="currentColor"/></svg> Despesas do Mês</h2>
+                                </div>
+                                <p id="despesasMes" class="negativo">R$ 0,00</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Seção de Histórico de Transações -->
+                    <div class="content-card">
                         <div class="historico-header">
                             <h2>Histórico de Transações</h2>
                             <div class="botoes-acao-cabecalho">
-                                <button id="toggle-values-btn" class="btn-theme" title="Ocultar/Mostrar Valores">👁️</button>
-                                <button id="theme-toggle-btn" class="btn-theme" title="Alternar Tema">🌙</button>
                                 <button id="btnExportar" class="btn-exportar" title="Gera um relatório visual em HTML">Relatório (HTML)</button>
                                 <button id="btnExportarCSV" class="btn-secondary" title="Gera uma planilha CSV para Excel">Excel (CSV)</button>
                                 <button id="btnLimparTudo" class="btn-perigo">Limpar Tudo</button>
@@ -109,14 +89,17 @@
                             <button class="filtro-btn" data-filter="receita">Receitas</button>
                             <button class="filtro-btn" data-filter="despesa">Despesas</button>
                         </div>
+                        <div class="search-container">
+                            <input type="search" id="search-input" placeholder="🔎 Pesquisar por descrição...">
+                        </div>
                         <div id="filtro-resumo" class="filtro-resumo hidden"></div>
                         <div class="transacoes-header">
-                            <div class="col-data">Data</div>
-                            <div class="col-descricao">Descrição</div>
-                            <div class="col-categoria">Categoria</div>
-                            <div class="col-pagamento">Pagamento</div>
-                            <div class="col-valor">Valor</div>
-                            <div class="col-acoes">Ações</div>
+                            <span class="col-data">Data</span>
+                            <span class="col-descricao">Descrição</span>
+                            <span class="col-categoria">Categoria</span>
+                            <span class="col-pagamento">Pagamento</span>
+                            <span class="col-valor">Valor</span>
+                            <span class="col-acoes">Ações</span>
                         </div>
                         <ul id="transacoesLista"></ul>
                         <div id="empty-state-message" class="empty-state">
@@ -126,102 +109,117 @@
                             <button id="btnMostrarMais" class="btn-secondary">Mostrar Mais</button>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Aba de Análise -->
-                    <div id="analise-content" class="tab-pane">
-                        <div id="analise-resumo" class="analise-resumo">
-                            <!-- Conteúdo do resumo será inserido aqui via JS -->
-                        </div>
-                        <div class="graficos-grid">
-                            <div class="grafico-card">
-                                <h3>📊 Despesas por Categoria</h3>
-                                <div class="grafico-com-lista" id="despesas-chart-container">
-                                    <div class="grafico-container">
-                                        <canvas id="despesasChart"></canvas>
-                                    </div>
-                                    <div id="despesas-lista-detalhada" class="lista-detalhada"></div>
-                                </div>
-                                <div id="despesas-chart-empty" class="chart-empty-state hidden">
-                                    <p>Adicione despesas para ver a análise.</p>
-                                </div>
+                <!-- Página de Análise -->
+                <div id="analise-page" class="page">
+                    <div class="page-header"><h1>Análise Gráfica</h1></div>
+                    <div id="analise-resumo" class="analise-resumo"></div>
+                    <!-- Grid para os gráficos de análise -->
+                    <div class="graficos-grid">
+                        <div class="grafico-card">
+                            <h3>📊 Despesas por Categoria</h3>
+                            <div class="grafico-com-lista" id="despesas-chart-container">
+                                <div class="grafico-container"><canvas id="despesasChart"></canvas></div>
+                                <div id="despesas-lista-detalhada" class="lista-detalhada"></div>
                             </div>
-                            <div class="grafico-card">
-                                <h3>📈 Receitas por Categoria</h3>
-                                <div class="grafico-com-lista" id="receitas-chart-container">
-                                    <div class="grafico-container">
-                                        <canvas id="receitasChart"></canvas>
-                                    </div>
-                                    <div id="receitas-lista-detalhada" class="lista-detalhada"></div>
-                                </div>
-                                <div id="receitas-chart-empty" class="chart-empty-state hidden">
-                                    <p>Adicione receitas para ver a análise.</p>
-                                </div>
+                            <div id="despesas-chart-empty" class="chart-empty-state hidden"><p>Adicione despesas para ver a análise.</p></div>
+                        </div>
+                        <div class="grafico-card">
+                            <h3>📈 Receitas por Categoria</h3>
+                            <div class="grafico-com-lista" id="receitas-chart-container">
+                                <div class="grafico-container"><canvas id="receitasChart"></canvas></div>
+                                <div id="receitas-lista-detalhada" class="lista-detalhada"></div>
                             </div>
-                            <div class="grafico-card grafico-grande">
-                                <h3>🗓️ Receitas vs. Despesas por Mês</h3>
-                                <div class="grafico-container">
-                                    <canvas id="saldoEvolucaoChart"></canvas>
-                                </div>
-                                <div id="saldo-chart-empty" class="chart-empty-state hidden">
-                                    <p>Adicione transações para ver a evolução do seu saldo.</p>
-                                </div>
+                            <div id="receitas-chart-empty" class="chart-empty-state hidden"><p>Adicione receitas para ver a análise.</p></div>
+                        </div>
+                        <div class="grafico-card grafico-grande">
+                            <h3>🗓️ Receitas vs. Despesas por Mês</h3>
+                            <div class="grafico-container" id="saldo-evolucao-chart-container">
+                                <canvas id="saldoEvolucaoChart"></canvas>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Aba de Orçamento (NOVO) -->
-                    <div id="orcamento-content" class="tab-pane">
-                        <h2>Definir Orçamentos Mensais</h2>
-                        <p class="subtitulo-orcamento">Defina um limite de gastos para cada categoria. Os valores são salvos automaticamente.</p>
-                        <div id="orcamento-form-container" class="orcamento-form-grid">
-                            <!-- Os inputs de orçamento serão inseridos aqui via JS -->
-                        </div>
-                
-                        <h2 style="margin-top: 40px;">📊 Acompanhamento do Orçamento</h2>
-                        <p class="subtitulo-orcamento">Veja o progresso dos seus gastos em relação aos limites definidos.</p>
-                        <div id="orcamento-progresso-container">
-                            <!-- O progresso do orçamento será inserido aqui via JS -->
-                        </div>
-                    </div>
-
-                    <!-- Aba de Metas (NOVO) -->
-                    <div id="metas-content" class="tab-pane">
-                        <div class="metas-header">
-                            <h2>🏆 Suas Metas Financeiras</h2>
-                            <button id="btnCriarMeta" class="btn-sucesso">+ Criar Nova Meta</button>
-                        </div>
-                        <p class="subtitulo-orcamento">Defina e acompanhe o progresso da sua meta de economia e de seus objetivos personalizados.</p>
-                        <!-- Meta de Economia Mensal agora está separada e em destaque -->
-                        <div class="meta-card meta-principal">
-                            <div class="card-header">
-                                <h3 id="main-goal-title"><span class="card-icon">🎯</span> Meta de Economia Mensal</h3>
-                                <button id="btnSetGoal" class="btn-set-goal" title="Definir Meta">Definir</button>
-                            </div>
-                            <div class="savings-progress-container">
-                                <div class="savings-progress-bar">
-                                    <div id="savingsProgressFill" class="savings-progress-fill"></div>
-                                </div>
-                                <div class="savings-progress-text">
-                                    <span>Economizado: <span id="savedAmount">R$ 0,00</span></span> <span>Faltam: <span id="goalAmount">R$ 0,00</span></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Container para as metas personalizadas -->
-                        <div class="metas-grid">
-                            <!-- Metas personalizadas serão inseridas aqui via JS -->
+                            <div id="saldo-chart-empty" class="chart-empty-state hidden"><p>Adicione transações para ver a evolução do seu saldo.</p></div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </main>
+
+                <!-- Página de Orçamento -->
+                <div id="orcamento-page" class="page">
+                    <div class="page-header"><h1>Orçamento</h1></div>
+                    <div class="content-card" style="margin-bottom: 30px;">
+                        <h2>Definir Orçamentos Mensais</h2>
+                        <p class="subtitulo-orcamento">Defina um limite de gastos para cada categoria. Os valores são salvos automaticamente.</p>
+                        <div id="orcamento-form-container" class="orcamento-form-grid"></div>
+                    </div>
+                    <div class="content-card">
+                        <h2>📊 Acompanhamento do Orçamento</h2>
+                        <p class="subtitulo-orcamento">Veja o progresso dos seus gastos em relação aos limites definidos.</p>
+                        <div id="orcamento-progresso-container"></div>
+                    </div>
+                </div>
+
+                <!-- Página de Metas -->
+                <div id="metas-page" class="page">
+                    <div class="page-header"><h1>Metas Financeiras</h1></div>
+                    <!-- Seção de Metas -->
+                    <div class="content-card" style="margin-bottom: 30px;">
+                        <div class="metas-header">
+                            <h2>🏆 Suas Metas Financeiras</h2>
+                            <div>
+                                <button id="btnResetGoals" class="btn-secondary" title="Zerar o valor economizado de uma ou mais metas">Resetar Progresso</button>
+                                <button class="btn-sucesso btn-criar-meta" data-goal-type="meta">+ Criar Nova Meta</button>
+                            </div>
+                        </div>
+                        <p class="subtitulo-orcamento">Acompanhe o progresso da sua principal meta de economia.</p>
+                        <div id="main-goal-placeholder"></div>
+                        <div id="custom-metas-list" class="custom-goals-list"></div>
+                    </div>
+                </div>
+
+                <!-- Página de Investimentos (NOVA) -->
+                <div id="investimentos-page" class="page">
+                    <div class="page-header"><h1>Investimentos</h1></div>
+                    <div class="content-card">
+                        <div class="metas-header">
+                            <h2>💡 Seus Investimentos</h2>
+                            <button class="btn-sucesso btn-criar-meta" data-goal-type="investimento">+ Novo Investimento</button>
+                        </div>
+                        <p class="subtitulo-orcamento">Crie e acompanhe o progresso de seus investimentos de longo prazo.</p>
+                        <div id="investments-list" class="custom-goals-list" style="margin-top: 0;"></div>
+                    </div>
+                    <div class="content-card">
+                        <h2>📊 Análise de Investimentos</h2>
+                        <div class="investimentos-grid">
+                            <div class="grafico-card">
+                                <h3>Distribuição do Portfólio</h3>
+                                <div class="grafico-com-lista" id="investment-allocation-chart-container">
+                                    <div class="grafico-container"><canvas id="investmentAllocationChart"></canvas></div>
+                                    <div id="investment-allocation-lista-detalhada" class="lista-detalhada"></div>
+                                </div>
+                                <div id="investment-allocation-chart-empty" class="chart-empty-state hidden"><p>Adicione fundos para ver a alocação.</p></div>
+                            </div>
+                            <div class="grafico-card">
+                                <h3>Progresso dos Investimentos</h3>
+                                <div class="grafico-container" id="investments-chart-container"><canvas id="investmentsChart"></canvas></div>
+                                <div id="investments-chart-empty" class="chart-empty-state hidden"><p>Crie investimentos para ver a análise.</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
     </div>
 
     <!-- Template para item de transação -->
     <template id="transacao-template">
         <li>
             <span class="col-data"></span>
-            <span class="col-descricao"></span>
+            <div class="transacao-info">
+                <span class="col-descricao"></span>
+                <div class="tag-categoria-mobile"></div>
+            </div>
             <span class="col-categoria"></span>
             <span class="col-pagamento"></span>
             <span class="col-valor"></span>
@@ -245,6 +243,46 @@
             </div>
         </div>
     </div>
+
+    <!-- BOTÃO FLUTUANTE PARA ADICIONAR (MOBILE) -->
+    <button id="open-add-transaction-modal" class="fab" title="Adicionar Transação">+</button>
+
+    <div class="nav-overlay hidden"></div>
+    <!-- MODAL PARA ADICIONAR TRANSAÇÃO (MOBILE) -->
+    <div id="add-transaction-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <!-- O formulário será clonado aqui via JS -->
+        </div>
+    </div>
+
+    <!-- TEMPLATE DO FORMULÁRIO DE TRANSAÇÃO (para ser clonado) -->
+    <template id="form-template">
+        <section class="formulario-transacao" aria-labelledby="form-title">
+            <div class="modal-header">
+                <h2 id="form-title">Adicionar Transação</h2>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="formTransacao">
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <input type="text" id="descricao" class="form-input-descricao" placeholder="Ex: Salário, Aluguel" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label>Valor (use vírgula para centavos)</label>
+                    <input type="text" id="valor" class="form-input-valor" placeholder="0,00" required aria-required="true" inputmode="decimal">
+                </div>
+                <div class="form-group">
+                    <div class="label-with-button">
+                        <label>Categoria</label>
+                        <button type="button" class="btn-manage-categories" title="Gerenciar Categorias">⚙️</button>
+                    </div>
+                    <select id="categoria" class="form-input-categoria"></select>
+                    <input type="text" id="categoria-outra" class="form-input-categoria-outra hidden" placeholder="Digite a nova categoria" style="margin-top: 10px;">
+                </div>
+                <!-- Fieldsets e botões serão adicionados aqui via JS -->
+            </form>
+        </section>
+    </template>
 
     <!-- Modal para Pagar Fatura -->
     <div id="pay-bill-modal" class="modal-overlay hidden">
@@ -284,7 +322,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="set-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button class="btn-secondary">Cancelar</button>
                 <button id="set-goal-btn-ok" class="btn-sucesso">Salvar Meta</button>
             </div>
         </div>
@@ -306,9 +344,23 @@
                     <label for="goal-target-value">Valor Alvo</label>
                     <input type="text" id="goal-target-value" placeholder="0,00" required inputmode="decimal">
                 </div>
+                <!-- Novo campo para editar o valor salvo -->
+                <div class="form-group hidden" id="goal-saved-value-group">
+                    <label for="goal-saved-value">Valor Atual (Salvo/Investido)</label>
+                    <input type="text" id="goal-saved-value" placeholder="0,00" inputmode="decimal">
+                </div>
+                <!-- Novo campo para Categoria do Investimento -->
+                <div class="form-group hidden" id="goal-category-group">
+                    <label for="goal-category">Categoria do Investimento</label>
+                    <select id="goal-category">
+                        <!-- As opções serão populadas dinamicamente via JS -->
+                    </select>
+                    <input type="text" id="goal-category-other" class="hidden" placeholder="Digite a categoria" style="margin-top: 10px;">
+                </div>
             </div>
             <div class="modal-footer">
-                <button id="create-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button id="delete-goal-from-modal-btn" class="btn-perigo hidden">Excluir Meta</button>
+                <button class="btn-secondary">Cancelar</button>
                 <button id="create-goal-btn-ok" class="btn-sucesso">Salvar Meta</button>
             </div>
         </div>
@@ -328,8 +380,49 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="add-to-goal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button class="btn-secondary">Cancelar</button>
                 <button id="add-to-goal-btn-ok" class="btn-sucesso">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Resetar Progresso de Metas -->
+    <div id="reset-goals-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Resetar Progresso da Meta</h3>
+                <p>Selecione as metas cujo progresso de economia você deseja zerar.</p>
+            </div>
+            <div class="modal-body">
+                <div id="reset-goals-list" class="goals-selection-list">
+                    <!-- A lista de metas será inserida aqui via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary">Cancelar</button>
+                <button id="reset-goals-btn-ok" class="btn-perigo">Confirmar Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Gerenciar Categorias -->
+    <div id="manage-categories-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gerenciar Categorias de Transação</h3>
+                <p>Adicione, edite ou remova categorias. A exclusão não afetará transações existentes.</p>
+            </div>
+            <div class="modal-body">
+                <ul id="category-manager-list" class="category-manager-list">
+                    <!-- Categorias serão inseridas aqui via JS -->
+                </ul>
+                <div class="add-category-form">
+                    <input type="text" id="new-category-name-input" placeholder="Adicionar nova categoria">
+                    <button id="add-new-category-btn" class="btn-sucesso">+</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="manage-categories-btn-close" class="btn-secondary">Fechar</button>
             </div>
         </div>
     </div>

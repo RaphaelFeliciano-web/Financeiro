@@ -6,12 +6,18 @@ function createTransactionManager(DOM) {
         currentFilter: 'all',
         showingAll: false, // Controla se todas as transações são exibidas
         filterSummaryRequested: false, // Controla a visibilidade do resumo do filtro
-        charts: { despesas: null, receitas: null, saldoEvolucao: null }, // Armazena instâncias dos gráficos
+        charts: { despesas: null, receitas: null, saldoEvolucao: null, goals: null, investments: null, investmentAllocation: null }, // Armazena instâncias dos gráficos
         budgets: JSON.parse(localStorage.getItem('budgets')) || {}, // Novo estado para orçamentos
-        mainGoal: JSON.parse(localStorage.getItem('mainGoal')) || { name: 'Meta de Economia Mensal', target: 0 },
+        transactionCategories: JSON.parse(localStorage.getItem('transactionCategories')) || ['Salário', 'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Pagamento de Fatura', 'Outros'],
+        mainGoal: JSON.parse(localStorage.getItem('mainGoal')) || { name: 'Meta de Economia Mensal', target: 0, saved: 0 },
+        investmentCategories: JSON.parse(localStorage.getItem('investmentCategories')) || ['Renda Fixa', 'Renda Variável', 'Fundos Imobiliários', 'Criptomoedas'],
         customGoals: JSON.parse(localStorage.getItem('customGoals')) || [],
+        editingGoalId: null, // Novo estado para controlar a edição de metas
         goalActionTargetId: null, // ID da meta para adicionar fundos ou excluir
         valuesVisible: true, // Novo estado para controlar a visibilidade dos valores
+        goalCreationType: 'meta', // Controla o tipo de meta/investimento a ser criado
+        draggedItemId: null, // Armazena o ID do item sendo arrastado
+        categoryColors: {}, // Armazena as cores geradas para cada categoria
     };
 
     /**
@@ -19,6 +25,20 @@ function createTransactionManager(DOM) {
      */
     const saveToLocalStorage = () => {
         localStorage.setItem('transactions', JSON.stringify(State.transactions));
+    };
+
+    /**
+     * Salva as categorias de transação no Local Storage.
+     */
+    const saveTransactionCategoriesToLocalStorage = () => {
+        localStorage.setItem('transactionCategories', JSON.stringify(State.transactionCategories));
+    };
+
+    /**
+     * Salva as categorias de investimento no Local Storage.
+     */
+    const saveInvestmentCategoriesToLocalStorage = () => {
+        localStorage.setItem('investmentCategories', JSON.stringify(State.investmentCategories));
     };
 
     /**
@@ -40,6 +60,33 @@ function createTransactionManager(DOM) {
      */
     const saveMainGoalToLocalStorage = () => {
         localStorage.setItem('mainGoal', JSON.stringify(State.mainGoal));
+    };
+
+    /**
+     * Gera uma cor consistente com base no nome da categoria.
+     * @param {string} categoryName - O nome da categoria.
+     * @returns {string} - Uma cor HSL.
+     */
+    const getCategoryColor = (categoryName) => {
+        if (State.categoryColors[categoryName]) {
+            return State.categoryColors[categoryName];
+        }
+
+        // Gera um hash simples a partir do nome da categoria
+        let hash = 0;
+        for (let i = 0; i < categoryName.length; i++) {
+            hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+            hash = hash & hash; // Converte para 32bit integer
+        }
+
+        // Usa o hash para gerar uma cor HSL bonita e consistente
+        const hue = hash % 360;
+        const saturation = 70; // Saturação consistente
+        const lightness = 40;  // Luminosidade consistente
+
+        const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        State.categoryColors[categoryName] = color;
+        return color;
     };
 
     /**
@@ -199,12 +246,14 @@ function createTransactionManager(DOM) {
             const deleteBtn = clone.querySelector('.delete-btn');
             const editBtn = clone.querySelector('.edit-btn');
 
+            li.style.setProperty('--category-color', getCategoryColor(transaction.categoria));
             li.classList.add(transaction.tipo);
             li.dataset.id = transaction.id; // Usaremos o ID numérico novamente
 
             clone.querySelector('.col-data').textContent = formatDateTime(transaction.data);
             clone.querySelector('.col-descricao').textContent = transaction.descricao; // O ID do backend será `_id`
             clone.querySelector('.col-categoria').textContent = transaction.categoria;
+            clone.querySelector('.tag-categoria-mobile').textContent = transaction.categoria;
             clone.querySelector('.col-pagamento').textContent = transaction.pagamento;
 
             const valorPrefix = transaction.tipo === 'receita' ? '+ ' : '- ';
@@ -287,7 +336,7 @@ function createTransactionManager(DOM) {
         const monthlyFlow = {};
         sortedTransactions.forEach(t => {
             const date = new Date(t.data);
-            // Cria uma chave no formato 'YYYY-MM' para garantir a ordem cronológica
+            // Cria uma chave noformato 'YYYY-MM' para garantir a ordem cronológica
             const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             
             if (!monthlyFlow[monthKey]) {
@@ -308,9 +357,17 @@ function createTransactionManager(DOM) {
      * Atualiza os saldos na tela e aplica classes de cor com base nos valores.
      */
     const updateBalance = () => {
-        const { saldoFinal, dividaFinal } = calculateMetrics();
+        const { saldoFinal, dividaFinal, receitas, totalDespesas } = calculateMetrics();
         if (DOM.saldoAtual) DOM.saldoAtual.textContent = formatCurrency(saldoFinal);
         if (DOM.dividaCartao) DOM.dividaCartao.textContent = formatCurrency(dividaFinal);
+
+        // Atualiza os novos cards de resumo do mês
+        if (DOM.receitasMes) {
+            DOM.receitasMes.textContent = formatCurrency(receitas);
+        }
+        if (DOM.despesasMes) {
+            DOM.despesasMes.textContent = formatCurrency(totalDespesas);
+        }
 
         [DOM.saldoAtual, DOM.dividaCartao].forEach(el => {
             if (!el) return;
@@ -328,141 +385,6 @@ function createTransactionManager(DOM) {
                 card.classList.add('neutro');
             }
         });
-    };
-
-    /**
-     * Reseta o formulário e o estado de edição.
-     */
-    const resetFormState = () => {
-        State.editingId = null;
-        if (DOM.formTransacao) DOM.formTransacao.reset();
-        if (DOM.addTransactionBtn) DOM.addTransactionBtn.textContent = 'Adicionar Transação';
-        if (DOM.cancelEditBtn) DOM.cancelEditBtn.classList.add('hidden');
-        
-        if (DOM.tipoRadios) DOM.tipoRadios.forEach(radio => {
-            radio.disabled = false;
-            if (radio.parentElement) radio.parentElement.classList.remove('disabled');
-        });
-        if (DOM.formaPagamentoRadios) DOM.formaPagamentoRadios.forEach(radio => {
-            radio.disabled = false;
-            if (radio.parentElement) radio.parentElement.classList.remove('disabled');
-        });
-        if (DOM.descricaoInput) DOM.descricaoInput.focus();
-    };
-
-    /**
-     * Preenche o formulário para editar uma transação.
-     */
-    const populateFormForEdit = (transaction) => {
-        State.editingId = transaction.id; // Usaremos o ID numérico novamente
-        DOM.descricaoInput.value = transaction.descricao;
-        DOM.valorInput.value = transaction.valor.toString().replace('.', ',');
-        DOM.categoriaInput.value = transaction.categoria;
-
-        const tipoRadio = document.querySelector(`input[name="tipo"][value="${transaction.tipo}"]`);
-        if (tipoRadio) tipoRadio.checked = true;
-        
-        if (transaction.tipo === 'despesa' && transaction.pagamento !== 'N/A') {
-            const pagamentoRadio = document.querySelector(`input[name="forma_pagamento"][value="${transaction.pagamento}"]`);
-            if (pagamentoRadio) pagamentoRadio.checked = true;
-        }
-
-        if (DOM.categoriaInput) DOM.categoriaInput.dispatchEvent(new Event('change'));
-        if (DOM.addTransactionBtn) DOM.addTransactionBtn.textContent = 'Atualizar Transação';
-        if (DOM.cancelEditBtn) DOM.cancelEditBtn.classList.remove('hidden');
-        if (DOM.descricaoInput) DOM.descricaoInput.focus();
-        if (DOM.formTransacao) DOM.formTransacao.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-
-    /**
-     * Adiciona ou atualiza uma transação.
-     */
-    const addTransaction = (e) => {
-        e.preventDefault();
-
-        const valor = parseFloat(DOM.valorInput.value.replace(',', '.'));
-        const tipo = document.querySelector('input[name="tipo"]:checked').value;
-        
-        // Correção: Obter a forma de pagamento apenas se o tipo for 'despesa'.
-        // Isso evita o erro que impedia o registro de receitas.
-        let pagamento = 'N/A';
-        if (tipo === 'despesa') {
-            const pagamentoRadio = document.querySelector('input[name="forma_pagamento"]:checked');
-            pagamento = pagamentoRadio ? pagamentoRadio.value : 'debito';
-        }
-        const descricao = DOM.descricaoInput.value.trim();
-        const categoria = DOM.categoriaInput.value;
-
-        if (descricao === '' || isNaN(valor) || valor <= 0) {
-            showNotification('Por favor, preencha a descrição e um valor válido.', 'error');
-            return;
-        }
-
-        // --- Validação de Saldo ---
-        // Garante que a transação não resultará em saldo negativo na conta.
-        const { saldoFinal } = calculateMetrics();
-        let potentialNewBalance = saldoFinal;
-
-        if (State.editingId) {
-            const originalTransaction = State.transactions.find(t => t.id === State.editingId);
-            if (originalTransaction) {
-                // Reverte o efeito da transação original no saldo da conta
-                if (originalTransaction.tipo === 'receita') {
-                    potentialNewBalance -= originalTransaction.valor;
-                } else if (originalTransaction.pagamento !== 'credito') {
-                    potentialNewBalance += originalTransaction.valor;
-                }
-            }
-        }
-
-        // Aplica o efeito da nova transação (ou da transação editada) no saldo da conta
-        if (tipo === 'receita') {
-            // Ao editar uma despesa para receita, o valor é adicionado.
-            // Ao adicionar uma nova receita, o valor é adicionado.
-            potentialNewBalance += valor;
-        } else if (pagamento !== 'credito') {
-            potentialNewBalance -= valor;
-        }
-
-        // Verifica se a operação é válida
-        if (potentialNewBalance < 0) {
-            const message = State.editingId
-                ? 'A atualização desta transação deixaria seu saldo negativo.'
-                : 'Saldo insuficiente para esta despesa.';
-            showNotification(message, 'error');
-            return;
-        }
-        // --- Fim da Validação de Saldo ---
-
-        let transactionIdToHighlight;
-
-        if (State.editingId) {
-            const transactionIndex = State.transactions.findIndex(t => t.id === State.editingId);
-            if (transactionIndex > -1) {
-                const originalTransaction = State.transactions[transactionIndex];
-                State.transactions[transactionIndex] = {
-                    ...originalTransaction,
-                    descricao, valor, categoria, tipo,
-                    pagamento: (tipo === 'receita') ? 'N/A' : pagamento,
-                };
-                transactionIdToHighlight = State.editingId;
-                showNotification('Transação atualizada com sucesso!', 'success');
-            }
-        } else {
-            const newTransaction = {
-                id: Date.now(),
-                descricao, valor, categoria, tipo,
-                pagamento: (tipo === 'receita') ? 'N/A' : pagamento,
-                data: new Date().toISOString()
-            };
-            transactionIdToHighlight = newTransaction.id;
-            State.transactions.unshift(newTransaction);
-            showNotification('Transação adicionada com sucesso!', 'success');
-        }
-
-        saveToLocalStorage();
-        updateDOM({ highlightId: transactionIdToHighlight });
-        resetFormState();
     };
 
     /**
@@ -932,21 +854,36 @@ function createTransactionManager(DOM) {
         const netBalance = receitas - totalDespesas;
         const healthStatus = getFinancialHealthStatus(metrics);
     
+        const icons = {
+            receitas: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H8l4-4 4 4h-3v4h-2z" fill="currentColor"/></svg>`,
+            despesas: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z" fill="currentColor"/></svg>`,
+            balanco: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="currentColor"/></svg>`,
+            saude: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/></svg>`
+        };
+
         const summaryHTML = `
             <div class="analise-resumo-item">
-                <h4>Total de Receitas</h4>
+                <div class="resumo-item-header">
+                    ${icons.receitas}<h4>Total de Receitas</h4>
+                </div>
                 <p class="receita">${formatCurrency(receitas)}</p>
             </div>
             <div class="analise-resumo-item">
-                <h4>Total de Despesas</h4>
+                <div class="resumo-item-header">
+                    ${icons.despesas}<h4>Total de Despesas</h4>
+                </div>
                 <p class="despesa">${formatCurrency(totalDespesas)}</p>
             </div>
             <div class="analise-resumo-item">
-                <h4>Balanço do Período</h4>
+                <div class="resumo-item-header">
+                    ${icons.balanco}<h4>Balanço do Período</h4>
+                </div>
                 <p class="${netBalance >= 0 ? 'receita' : 'despesa'}">${formatCurrency(netBalance)}</p>
             </div>
             <div class="analise-resumo-item health-status-card">
-                <h4>Sua Saúde Financeira</h4>
+                <div class="resumo-item-header">
+                    ${icons.saude}<h4>Sua Saúde Financeira</h4>
+                </div>
                 <p>${healthStatus}</p>
             </div>
         `;
@@ -1008,11 +945,14 @@ function createTransactionManager(DOM) {
             let listHTML = '';
             sortedExpenses.forEach(([category, value], index) => {
                 const color = chartColors.expense[index % chartColors.expense.length];
-                listHTML += `
+                const percentage = (value / totalExpensesForChart) * 100;
+                listHTML += /*html*/`
                     <div class="lista-detalhada-item">
-                        <span class="lista-detalhada-cor" style="background-color: ${color};"></span>
-                        <span class="lista-detalhada-categoria">${category}</span>
-                        <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                        <div class="lista-detalhada-progress" style="width: ${percentage}%; background-color: ${color};"></div>
+                        <div class="lista-detalhada-content">
+                            <span class="lista-detalhada-categoria">${category}</span>
+                            <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                        </div>
                     </div>
                 `;
             });
@@ -1069,11 +1009,14 @@ function createTransactionManager(DOM) {
             let listHTML = '';
             sortedIncomes.forEach(([category, value], index) => {
                 const color = chartColors.income[index % chartColors.income.length];
-                listHTML += `
+                const percentage = (value / totalIncomeForChart) * 100;
+                listHTML += /*html*/`
                     <div class="lista-detalhada-item receita">
-                        <span class="lista-detalhada-cor" style="background-color: ${color};"></span>
-                        <span class="lista-detalhada-categoria">${category}</span>
-                        <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                        <div class="lista-detalhada-progress" style="width: ${percentage}%; background-color: ${color};"></div>
+                        <div class="lista-detalhada-content">
+                            <span class="lista-detalhada-categoria">${category}</span>
+                            <span class="lista-detalhada-valor">${formatCurrency(value)}</span>
+                        </div>
                     </div>
                 `;
             });
@@ -1153,57 +1096,504 @@ function createTransactionManager(DOM) {
      * Renderiza os gráficos de análise financeira.
      */
     const renderCharts = () => {
-        if (!DOM.despesasChart || !DOM.receitasChart || !DOM.saldoEvolucaoChart) return; // Safety check
-
         const metrics = calculateMetrics();
         const chartFontColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333';
         Chart.defaults.color = chartFontColor;
 
+        // Gráficos da aba "Análise"
         renderAnalysisSummary(metrics);
         renderExpenseChart(metrics, chartFontColor);
         renderIncomeChart(metrics, chartFontColor);
         renderBalanceChart(metrics, chartFontColor);
+
+        // Gráficos das abas "Metas" e "Investimentos"
+        renderGoalsChart(chartFontColor);
+        renderInvestmentsChart(chartFontColor);
+        renderInvestmentAllocationChart(chartFontColor);
     };
 
     /**
+     * Prepara os dados para o gráfico de metas.
      */
-    const renderCustomGoals = () => {
-        const metasGrid = document.querySelector('.metas-grid');
-        if (!metasGrid) return;
+    const getGoalChartData = () => {
+        const goals = State.customGoals.filter(g => g.type === 'meta' || !g.type); // Inclui metas personalizadas
+        const mainGoal = State.mainGoal;
 
-        metasGrid.innerHTML = ''; // Limpa o container
-        State.customGoals.forEach(goal => {
+        const allGoals = [];
+        if (mainGoal.target > 0) {
+            allGoals.push({ name: mainGoal.name, saved: mainGoal.saved, target: mainGoal.target });
+        }
+        allGoals.push(...goals);
+
+        const labels = allGoals.map(g => g.name);
+        const savedData = allGoals.map(g => g.saved);
+        const targetData = allGoals.map(g => Math.max(0, g.target - g.saved)); // Remaining to reach target
+
+        return { labels, savedData, targetData, hasData: allGoals.length > 0 };
+    };
+
+    /**
+     * Prepara os dados para o gráfico de investimentos.
+     */
+    const getInvestmentChartData = () => {
+        const investments = State.customGoals.filter(g => g.type === 'investimento');
+        
+        const labels = investments.map(g => g.name);
+        const investedData = investments.map(g => g.saved);
+        const targetData = investments.map(g => Math.max(0, g.target - g.saved)); // Remaining to reach target
+
+        return { labels, investedData, targetData, hasData: investments.length > 0 };
+    };
+
+    /**
+     * Renderiza o gráfico de progresso das metas.
+     */
+    const renderGoalsChart = (chartFontColor) => {
+        if (!DOM.goalsChart) return;
+
+        const { labels, savedData, targetData, hasData } = getGoalChartData();
+
+        DOM.goalsChartContainer.classList.toggle('hidden', !hasData);
+        DOM.goalsChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.goals) State.charts.goals.destroy();
+
+        if (hasData) {
+            const goalsCtx = DOM.goalsChart.getContext('2d');
+            State.charts.goals = new Chart(goalsCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Economizado',
+                            data: savedData,
+                            backgroundColor: 'rgba(80, 227, 194, 0.7)', // Cor de sucesso
+                            borderColor: '#50e3c2',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Falta Economizar',
+                            data: targetData,
+                            backgroundColor: 'rgba(74, 144, 226, 0.7)', // Cor primária
+                            borderColor: '#4a90e2',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y', // Barras horizontais
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' },
+                            ticks: { callback: (value) => formatCurrency(value) }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}` }
+                        }
+                    }
+                }
+            });
+        }
+    };
+
+    /**
+     * Renderiza o gráfico de progresso dos investimentos.
+     */
+    const renderInvestmentsChart = (chartFontColor) => {
+        if (!DOM.investmentsChart) return;
+
+        const { labels, investedData, targetData, hasData } = getInvestmentChartData();
+
+        DOM.investmentsChartContainer.classList.toggle('hidden', !hasData);
+        DOM.investmentsChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.investments) State.charts.investments.destroy();
+
+        if (hasData) {
+            const investmentsCtx = DOM.investmentsChart.getContext('2d');
+            State.charts.investments = new Chart(investmentsCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Investido',
+                            data: investedData,
+                            backgroundColor: 'rgba(74, 144, 226, 0.7)', // Cor primária
+                            borderColor: '#4a90e2',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Falta Investir',
+                            data: targetData,
+                            backgroundColor: 'rgba(245, 166, 35, 0.7)', // Cor de aviso
+                            borderColor: '#f5a623',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' },
+                            ticks: { callback: (value) => formatCurrency(value) }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#334' : '#e0e0e0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}` }
+                        }
+                    }
+                }
+            });
+        }
+    };
+
+    /**
+     * Renderiza o gráfico de alocação de investimentos (doughnut).
+     */
+    const renderInvestmentAllocationChart = (chartFontColor) => {
+        if (!DOM.investmentAllocationChart) return;
+
+        const investments = State.customGoals.filter(g => g.type === 'investimento' && g.saved > 0);
+        const hasData = investments.length > 0;
+
+        DOM.investmentAllocationChartContainer.classList.toggle('hidden', !hasData);
+        DOM.investmentAllocationChartEmpty.classList.toggle('hidden', hasData);
+
+        if (State.charts.investmentAllocation) State.charts.investmentAllocation.destroy();
+
+        if (hasData) {
+            // Agrupa os investimentos por categoria
+            const allocationByCategory = investments.reduce((acc, investment) => {
+                const category = investment.category || 'Sem Categoria'; // Fallback para dados antigos
+                acc[category] = (acc[category] || 0) + investment.saved;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(allocationByCategory);
+            const data = Object.values(allocationByCategory);
+            const totalInvested = investments.reduce((sum, i) => sum + i.saved, 0);
+
+            const allocationCtx = DOM.investmentAllocationChart.getContext('2d');
+            State.charts.investmentAllocation = new Chart(allocationCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: chartColors.income,
+                        borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#162447' : '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percentage = ((value / totalInvested) * 100).toFixed(1);
+                                    return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const sortedCategories = Object.entries(allocationByCategory).sort(([, a], [, b]) => b - a);
+            let listHTML = '';
+            sortedCategories.forEach(([category, value], index) => {
+                const color = chartColors.income[index % chartColors.income.length];
+                const percentage = ((value / totalInvested) * 100).toFixed(1);
+                listHTML += /*html*/`
+                    <div class="lista-detalhada-item receita">
+                        <div class="lista-detalhada-progress" style="width: ${percentage}%; background-color: ${color};"></div>
+                        <div class="lista-detalhada-content">
+                            <span class="lista-detalhada-categoria">${category}</span>
+                            <span class="lista-detalhada-valor">${formatCurrency(value)} (${percentage}%)</span>
+                        </div>
+                    </div>
+                `;
+            });
+            DOM.investmentAllocationListaDetalhada.innerHTML = listHTML;
+        } else {
+            DOM.investmentAllocationListaDetalhada.innerHTML = '';
+        }
+    };
+
+    /**
+     * Função genérica para renderizar uma lista de metas em um container específico.
+     * @param {HTMLElement} container - O elemento DOM onde as metas serão renderizadas.
+     * @param {Array} goals - O array de objetos de meta a serem renderizados.
+     */
+    const renderGoalsList = (container, goals) => {
+        if (!container) return;
+
+        container.innerHTML = ''; // Limpa o container
+        if (goals.length === 0) {
+            return;
+        }
+
+        goals.forEach(goal => {
             const saved = goal.saved || 0;
             const target = goal.target;
-            const remaining = Math.max(0, target - saved);
-            const percentage = target > 0 ? (saved / target) * 100 : 0;
+            const remaining = Math.max(0, target - saved);            
+            const percentage = target > 0 ? (saved / target) * 100 : (saved > 0 ? 100 : 0);
+            const typeText = goal.type === 'investimento' ? 'Investimento' : 'Meta';
+            const isInvestment = goal.type === 'investimento';
+            const isCompleted = percentage >= 100;
 
             const card = document.createElement('div');
-
             card.className = 'meta-card';
-            card.innerHTML = `
+            card.dataset.id = goal.id;
+
+            if (isInvestment) {
+                card.draggable = true;
+            }
+
+            const editAction = isInvestment ? 'editar-investimento' : 'editar-meta';
+            const addFundsAction = 'adicionar-fundos';
+
+            // Define o ícone com base no tipo e categoria do ativo
+            // SVG Icons
+            const icons = {
+                goal: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-12h2v4h-2zm0 6h2v2h-2z" fill="currentColor"/></svg>`,
+                investment: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H8l4-4 4 4h-3v4h-2z" fill="currentColor"/></svg>`,
+                realEstate: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z" fill="currentColor"/></svg>`,
+                crypto: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.29 13.71L12 15.41l-2.29 2.3-1.41-1.41L10.59 14l-2.3-2.29 1.41-1.41L12 12.59l2.29-2.3 1.41 1.41L13.41 14l2.3 2.29-1.42 1.42z" fill="currentColor"/></svg>`
+            };
+
+            let iconHTML = icons.goal; // Ícone padrão para metas
+            if (isInvestment) {
+                if (goal.category === 'Fundos Imobiliários') iconHTML = icons.realEstate;
+                else if (goal.category === 'Criptomoedas') iconHTML = icons.crypto;
+                else iconHTML = icons.investment;
+            }
+
+            card.innerHTML = /*html*/`
                 <div class="card-header">
-                    <h3><span class="card-icon">🏁</span> ${goal.name}</h3>
-                    <div class="goal-card-actions">
-                        <button class="delete-goal-btn" data-id="${goal.id}" title="Excluir Meta">🗑️</button>
-                    </div>
+                    <h3>${iconHTML} ${goal.name}</h3>
+                    <button class="btn-set-goal btn-edit-goal" data-action="${editAction}" title="Editar ${typeText}">Editar</button>
                 </div>
+                ${isInvestment && goal.category ? 
+                    `<div class="meta-category-display" style="background-color: ${getCategoryColor(goal.category)};">${goal.category}</div>` 
+                : ''}
                 <div class="savings-progress-container">
                     <div class="savings-progress-bar">
                         <div class="savings-progress-fill" style="width: ${Math.min(percentage, 100)}%;"></div>
                     </div>
                     <div class="savings-progress-text">
-                        <span>Guardado: <span class="saved-amount">${formatCurrency(saved)}</span></span>
-                        <span>Faltam: <span class="goal-amount">${formatCurrency(remaining)}</span></span>
+                        <span>${isCompleted ? 'Total:' : (isInvestment ? 'Investido:' : 'Economizado:')} <span class="saved-amount">${formatCurrency(saved)}</span></span>
+                        <span>${isCompleted ? 'Meta Atingida!' : `Faltam: <span class="goal-amount">${formatCurrency(remaining)}</span>`}</span>
                     </div>
                 </div>
                 <div class="meta-card-footer">
-                    <button class="btn-add-to-goal" data-id="${goal.id}">+ Adicionar Dinheiro</button>
+                    <button class="btn-add-to-goal" data-action="${addFundsAction}">+ Adicionar Dinheiro</button>
                 </div>
             `;
-            // Adiciona o novo card ao final da grid
-            metasGrid.appendChild(card);
+            container.appendChild(card);
+
+            if (isCompleted) {
+                card.classList.add('completed');
+            }
         });
+    };
+
+    /**
+     * Renderiza as opções de categoria de transação no select do formulário.
+     */
+    const renderTransactionCategoryOptions = () => {
+        // Seleciona todos os dropdowns de categoria (pode haver mais de um)
+        const categorySelects = document.querySelectorAll('.form-input-categoria');
+        if (categorySelects.length === 0) return;
+
+        const optionsHTML = State.transactionCategories
+            .map(cat => `<option value="${cat}">${cat}</option>`)
+            .join('') + '<option value="Outra">Outra...</option>';
+
+        categorySelects.forEach(select => {
+            const currentValue = select.value;
+            select.innerHTML = optionsHTML;
+            // Tenta manter o valor selecionado anteriormente, se ainda existir
+            select.value = State.transactionCategories.includes(currentValue) ? currentValue : State.transactionCategories[0];
+        });
+    };
+
+    /**
+     * Abre o modal de gerenciamento de categorias e renderiza a lista.
+     */
+    const openCategoryManager = () => {
+        if (!DOM.manageCategoriesModal) return;
+        renderCategoryManagerList();
+        DOM.manageCategoriesModal.classList.remove('hidden');
+        DOM.newCategoryNameInput.focus();
+    };
+
+    /**
+     * Renderiza a lista de categorias no modal de gerenciamento.
+     */
+    const renderCategoryManagerList = () => {
+        if (!DOM.categoryManagerList) return;
+        DOM.categoryManagerList.innerHTML = '';
+
+        const fixedCategories = ['Pagamento de Fatura', 'Salário'];
+
+        State.transactionCategories.forEach(category => {
+            const li = document.createElement('li');
+            li.className = 'category-manager-item';
+            li.dataset.category = category;
+            const isFixed = fixedCategories.includes(category);
+
+            li.innerHTML = `
+                <span>${category} ${isFixed ? '<small>(fixa)</small>' : ''}</span>
+                <div class="actions">
+                    ${!isFixed ? `
+                        <button class="btn-secondary edit-cat-btn" title="Editar">✏️</button>
+                        <button class="btn-perigo delete-cat-btn" title="Excluir">🗑️</button>
+                    ` : ''}
+                </div>
+            `;
+            DOM.categoryManagerList.appendChild(li);
+        });
+    };
+
+    /**
+     * Adiciona uma nova categoria a partir do modal de gerenciamento.
+     */
+    const addNewCategoryFromManager = () => {
+        const newCategoryName = DOM.newCategoryNameInput.value.trim();
+        if (!newCategoryName) {
+            showNotification('O nome da categoria não pode ser vazio.', 'error');
+            return;
+        }
+
+        const capitalizedCategory = newCategoryName.charAt(0).toUpperCase() + newCategoryName.slice(1);
+
+        if (State.transactionCategories.map(c => c.toLowerCase()).includes(capitalizedCategory.toLowerCase())) {
+            showNotification('Essa categoria já existe.', 'error');
+            return;
+        }
+
+        State.transactionCategories.push(capitalizedCategory);
+        saveTransactionCategoriesToLocalStorage();
+        showNotification(`Categoria "${capitalizedCategory}" adicionada.`, 'success');
+
+        DOM.newCategoryNameInput.value = '';
+        renderCategoryManagerList();
+        renderTransactionCategoryOptions();
+    };
+
+    /**
+     * Lida com cliques nos botões de editar/excluir no modal de categorias.
+     */
+    const handleCategoryActions = (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const li = target.closest('.category-manager-item');
+        const categoryName = li.dataset.category;
+
+        if (target.classList.contains('edit-cat-btn')) {
+            editCategory(li, categoryName);
+        } else if (target.classList.contains('delete-cat-btn')) {
+            deleteCategory(categoryName);
+        }
+    };
+
+    /**
+     * Exclui uma categoria.
+     */
+    const deleteCategory = async (categoryName) => {
+        const confirmed = await showConfirmation(`Tem certeza que deseja excluir a categoria "${categoryName}"?`);
+        if (confirmed) {
+            State.transactionCategories = State.transactionCategories.filter(c => c !== categoryName);
+            saveTransactionCategoriesToLocalStorage();
+            showNotification(`Categoria "${categoryName}" excluída.`, 'info');
+            renderCategoryManagerList();
+            renderTransactionCategoryOptions();
+        }
+    };
+
+    /**
+     * Transforma um item da lista em um formulário de edição.
+     */
+    const editCategory = (li, oldName) => {
+        li.innerHTML = /*html*/`
+            <input type="text" class="edit-category-input" value="${oldName}">
+            <div class="actions">
+                <button class="btn-sucesso save-cat-btn">Salvar</button>
+                <button class="btn-secondary cancel-cat-btn">Cancelar</button>
+            </div>
+        `;
+        li.querySelector('.save-cat-btn').onclick = () => saveCategoryEdit(li, oldName);
+        li.querySelector('.cancel-cat-btn').onclick = () => renderCategoryManagerList();
+    };
+
+    /**
+     * Salva a edição de uma categoria.
+     */
+    const saveCategoryEdit = (li, oldName) => {
+        const input = li.querySelector('.edit-category-input');
+        const newName = input.value.trim();
+
+        if (!newName) {
+            showNotification('O nome da categoria não pode ser vazio.', 'error');
+            input.focus();
+            return;
+        }
+
+        const capitalizedNewName = newName.charAt(0).toUpperCase() + newName.slice(1);
+
+        // Verifica se o novo nome (diferente do antigo) já existe
+        if (capitalizedNewName.toLowerCase() !== oldName.toLowerCase() && State.transactionCategories.map(c => c.toLowerCase()).includes(capitalizedNewName.toLowerCase())) {
+            showNotification('Essa categoria já existe.', 'error');
+            input.focus();
+            return;
+        }
+
+        // Encontra o índice da categoria antiga e a atualiza
+        const categoryIndex = State.transactionCategories.findIndex(c => c === oldName);
+        if (categoryIndex > -1) {
+            State.transactionCategories[categoryIndex] = capitalizedNewName;
+            saveTransactionCategoriesToLocalStorage();
+            showNotification(`Categoria "${oldName}" foi renomeada para "${capitalizedNewName}".`, 'success');
+        }
+
+        // Re-renderiza a lista e as opções do formulário
+        renderCategoryManagerList();
+        renderTransactionCategoryOptions();
     };
 
     /**
@@ -1241,21 +1631,6 @@ function createTransactionManager(DOM) {
                 </div>
             `;
             DOM.orcamentoFormContainer.appendChild(item);
-        });
-
-        DOM.orcamentoFormContainer.addEventListener('input', (e) => {
-            if (e.target.tagName === 'INPUT') {
-                const category = e.target.dataset.category;
-                const value = parseFloat(e.target.value.replace(',', '.'));
-                if (!isNaN(value) && value > 0) {
-                    State.budgets[category] = value;
-                } else {
-                    delete State.budgets[category]; // Remove o orçamento se o valor for inválido ou zero
-                }
-                saveBudgetsToLocalStorage();
-                updateDOM(); // Atualiza a UI para refletir a mudança no orçamento
-                showNotification(`Orçamento para ${category} atualizado.`, 'info');
-            }
         });
     };
 
@@ -1315,33 +1690,48 @@ function createTransactionManager(DOM) {
     };
 
     const renderMainGoal = () => {
-        if (!DOM.mainGoalContainer) return;
+        const placeholder = document.getElementById('main-goal-placeholder');
+        if (!placeholder) return;
     
-        const { saldoFinal } = calculateMetrics();
-        const { name, target } = State.mainGoal;
+        const { name, target, saved } = State.mainGoal;
     
-        // A "economia" é o saldo final, mas não pode ser negativo para o cálculo da meta.
-        const saved = Math.max(0, saldoFinal);
-        const remaining = Math.max(0, target - saved);
-        const percentage = target > 0 ? (saved / target) * 100 : 0;
+        const savedAmount = saved || 0;
+        const remaining = Math.max(0, target - savedAmount);
+        const percentage = target > 0 ? (savedAmount / target) * 100 : (savedAmount > 0 ? 100 : 0);
+        const isCompleted = percentage >= 100;
     
-        // Seleciona os elementos dentro do container da meta principal
-        const titleEl = DOM.mainGoalContainer.querySelector('#main-goal-title');
-        const savedAmountEl = DOM.mainGoalContainer.querySelector('#savedAmount');
-        const goalAmountEl = DOM.mainGoalContainer.querySelector('#goalAmount');
-        const progressFillEl = DOM.mainGoalContainer.querySelector('#savingsProgressFill');
-    
-        if (titleEl) {
-            titleEl.innerHTML = `<span class="card-icon">🎯</span> ${name}`;
-        }
-        if (savedAmountEl) {
-            savedAmountEl.textContent = formatCurrency(saved);
-        }
-        if (goalAmountEl) {
-            goalAmountEl.textContent = formatCurrency(remaining);
-        }
-        if (progressFillEl) {
-            progressFillEl.style.width = `${Math.min(percentage, 100)}%`;
+        // Constrói o HTML do card dinamicamente
+        const icons = {
+            mainGoal: `<svg class="card-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-12h2v4h-2zm0 6h2v2h-2z" fill="currentColor"/></svg>`
+        };
+
+        const cardHTML = /*html*/`
+            <div id="conteudo-principal-objetivos" class="meta-card meta-principal ${isCompleted ? 'completed' : ''}">
+                <div class="card-header">
+                    <h3 id="titulo-do-objetivo-principal">
+                        ${icons.mainGoal}
+                        ${name}
+                    </h3>
+                    <button id="btn-definir-meta" class="btn-set-goal" title="Editar Meta">Editar</button>
+                </div>
+                <div class="savings-progress-container">
+                    <div class="savings-progress-bar">
+                        <div id="barra-de-progresso-objetivo" class="savings-progress-fill" style="width: ${Math.min(percentage, 100)}%;">
+                        </div>
+                    </div>
+                    <div class="savings-progress-text">
+                        <span>Economizado: <span id="valor-guardado">${formatCurrency(savedAmount)}</span></span> <span>Faltam: <span id="valor-da-meta">${formatCurrency(remaining)}</span></span>
+                    </div>
+                </div>
+                <div class="meta-card-footer">
+                    <button id="btn-adicionar-fundos-meta-principal" class="btn-add-to-goal">+ Adicionar Dinheiro</button>
+                </div>
+            </div>
+        `;
+        placeholder.innerHTML = cardHTML;
+
+        if (isCompleted) {
+            placeholder.firstElementChild.classList.add('completed');
         }
     };
 
@@ -1351,68 +1741,14 @@ function createTransactionManager(DOM) {
         renderFilterSummary();
         renderCharts(); // Atualiza os gráficos junto com o resto da DOM
         renderBudgetProgress(); // Garante que o progresso do orçamento seja sempre atualizado
-        renderMainGoal(); // Atualiza a meta de economia
-        renderCustomGoals(); // Atualiza as metas personalizadas
-    };
+        renderMainGoal(); // Atualiza a meta principal
 
-    const init = () => {
-        // Os dados já são carregados do localStorage na inicialização do State
-        // Safely adds listeners, ensuring the absence of an element does not break the application
-
-        // Adiciona os listeners
-        if (DOM.formTransacao) DOM.formTransacao.addEventListener('submit', addTransaction);
-        if (DOM.cancelEditBtn) DOM.cancelEditBtn.addEventListener('click', resetFormState);
-        if (DOM.btnLimparTudo) DOM.btnLimparTudo.addEventListener('click', clearAllTransactions);
-        if (DOM.payBillBtnOk) DOM.payBillBtnOk.addEventListener('click', payCreditCardBill);
-        if (DOM.btnExportar) DOM.btnExportar.addEventListener('click', exportTransactionsToHTML);
-
-        renderBudgetForms(); // Renderiza os formulários de orçamento na inicialização
-
-        if (DOM.btnExportarCSV) DOM.btnExportarCSV.addEventListener('click', exportTransactionsToCSV);
-
-        document.addEventListener('click', handleClickOutside);
-
-        if (DOM.categoriaInput) {
-            DOM.categoriaInput.addEventListener('change', () => {
-                const isFatura = DOM.categoriaInput.value === 'Pagamento de Fatura';
-                const radios = [...(DOM.tipoRadios || []), ...(DOM.formaPagamentoRadios || [])];
-
-                if (isFatura) {
-                    const despesaRadio = document.querySelector('input[name="tipo"][value="despesa"]');
-                    const debitoRadio = document.querySelector('input[name="forma_pagamento"][value="debito"]');
-                    if (despesaRadio) despesaRadio.checked = true;
-                    if (debitoRadio) debitoRadio.checked = true;
-                }
-
-                radios.forEach(radio => {
-                    if (radio && radio.parentElement) {
-                        radio.disabled = isFatura;
-                        radio.parentElement.classList.toggle('disabled', isFatura);
-                    }
-                });
-            });
-        }
-
-        if (DOM.transacoesLista) {
-            DOM.transacoesLista.addEventListener('click', (e) => {
-                const button = e.target.closest('button');
-                if (!button) return;
-
-                const id = parseInt(button.dataset.id, 10); // O ID volta a ser um número
-                if (isNaN(id)) return;
-
-                if (button.classList.contains('delete-btn')) {
-                    deleteTransaction(id);
-                } else if (button.classList.contains('edit-btn')) {
-                    const transactionToEdit = State.transactions.find(t => t.id === id);
-                    if (transactionToEdit) {
-                        populateFormForEdit(transactionToEdit);
-                    }
-                }
-            });
-        }
-
-        
+        // Separa as metas e investimentos e renderiza em seus respectivos contêineres
+        renderTransactionCategoryOptions();
+        const metas = State.customGoals.filter(g => g.type === 'meta' || !g.type);
+        const investimentos = State.customGoals.filter(g => g.type === 'investimento');
+        renderGoalsList(DOM.customMetasList, metas);
+        renderGoalsList(DOM.investmentsList, investimentos);
     };
 
     const openSetGoalModal = () => {
@@ -1434,7 +1770,8 @@ function createTransactionManager(DOM) {
         }
 
         if (!isNaN(goalValue) && goalValue >= 0) {
-            State.mainGoal = { name: name, target: goalValue };
+            // Mantém o valor 'saved' ao atualizar a meta
+            State.mainGoal = { ...State.mainGoal, name: name, target: goalValue };
             saveMainGoalToLocalStorage();
             showNotification('Meta principal salva com sucesso!', 'success');
             if (DOM.setGoalModal) DOM.setGoalModal.classList.add('hidden');
@@ -1445,13 +1782,19 @@ function createTransactionManager(DOM) {
     };
 
     const handleGoalActions = (e) => {
-        const target = e.target;
-        const goalId = parseInt(target.dataset.id, 10);
+        const button = e.target.closest('button[data-action]');
+        if (!button) return;
 
-        if (target.classList.contains('btn-add-to-goal')) {
+        const card = button.closest('.meta-card');
+        if (!card) return;
+
+        const goalId = parseInt(card.dataset.id, 10);
+        const action = button.dataset.action;
+
+        if (action === 'adicionar-fundos') {
             openAddToGoalModal(goalId);
-        } else if (target.classList.contains('delete-goal-btn')) {
-            deleteCustomGoal(goalId);
+        } else if (action === 'editar-meta' || action === 'editar-investimento') {
+            openEditCustomGoalModal(goalId);
         }
     };
 
@@ -1466,7 +1809,18 @@ function createTransactionManager(DOM) {
         DOM.addToGoalValueInput.focus();
     };
 
-    const addFundsToCustomGoal = () => {
+    const openAddFundsToMainGoalModal = () => {
+        if (!DOM.addToGoalModal) return;
+
+        // Usamos 'main' como um ID especial para a meta principal
+        State.goalActionTargetId = 'main';
+        DOM.addToGoalMessage.textContent = `Você está adicionando fundos para a sua "${State.mainGoal.name}".`;
+        DOM.addToGoalValueInput.value = '';
+        DOM.addToGoalModal.classList.remove('hidden');
+        DOM.addToGoalValueInput.focus();
+    };
+
+    const addFundsToGoal = () => {
         const amount = parseFloat(DOM.addToGoalValueInput.value.replace(',', '.'));
         const goalId = State.goalActionTargetId;
 
@@ -1475,36 +1829,25 @@ function createTransactionManager(DOM) {
             return;
         }
 
-        const { saldoFinal } = calculateMetrics();
-        if (saldoFinal < amount) {
-            showNotification('Saldo em conta insuficiente para fazer esta aplicação.', 'error');
-            return;
+        let goalName;
+
+        // Lógica para a meta principal
+        if (goalId === 'main') {
+            goalName = State.mainGoal.name;
+            State.mainGoal.saved = (State.mainGoal.saved || 0) + amount;
+            saveMainGoalToLocalStorage();
+        } else { // Lógica para metas personalizadas (existente)
+            const goalIndex = State.customGoals.findIndex(g => g.id === goalId);
+            if (goalIndex === -1) {
+                showNotification('Meta não encontrada.', 'error');
+                return;
+            }
+            goalName = State.customGoals[goalIndex].name;
+            State.customGoals[goalIndex].saved += amount;
+            saveCustomGoalsToLocalStorage();
         }
 
-        const goalIndex = State.customGoals.findIndex(g => g.id === goalId);
-        if (goalIndex === -1) {
-            showNotification('Meta não encontrada.', 'error');
-            return;
-        }
-
-        // 1. Cria a transação de despesa
-        const newTransaction = {
-            id: Date.now(),
-            descricao: `Aplicação na meta: ${State.customGoals[goalIndex].name}`,
-            valor: amount,
-            categoria: 'Metas e Objetivos',
-            tipo: 'despesa',
-            pagamento: 'debito', // Assume que o dinheiro sai da conta
-            data: new Date().toISOString()
-        };
-        State.transactions.unshift(newTransaction);
-        saveToLocalStorage();
-
-        // 2. Atualiza o valor guardado na meta
-        State.customGoals[goalIndex].saved += amount;
-        saveCustomGoalsToLocalStorage();
-
-        // 3. Fecha o modal e atualiza a UI
+        // Fecha o modal e atualiza a UI
         if (DOM.addToGoalModal) DOM.addToGoalModal.classList.add('hidden');
         showNotification(`Valor de ${formatCurrency(amount)} adicionado à meta!`, 'success');
         updateDOM();
@@ -1518,51 +1861,458 @@ function createTransactionManager(DOM) {
         if (confirmed) {
             State.customGoals = State.customGoals.filter(g => g.id !== goalId);
             saveCustomGoalsToLocalStorage();
+            // Se a exclusão veio do modal, fecha o modal
+            if (DOM.createGoalModal && !DOM.createGoalModal.classList.contains('hidden')) {
+                DOM.createGoalModal.classList.add('hidden');
+            }
             showNotification(`Meta "${goal.name}" excluída.`, 'info');
             updateDOM();
         }
     };
 
 
-    const openCreateGoalModal = () => {
-        if (DOM.createGoalModal) {
-            // Limpa os campos do modal
-            DOM.goalNameInput.value = '';
-            DOM.goalTargetValueInput.value = '';
-            DOM.createGoalModal.classList.remove('hidden');
-            DOM.goalNameInput.focus();
+    const openCreateGoalModal = (goalType = 'meta') => {
+        if (!DOM.createGoalModal) return;
+
+        State.editingGoalId = null; // Garante que estamos no modo de criação
+        State.goalCreationType = goalType; // Armazena o tipo para usar ao salvar
+
+        const modalTitle = DOM.createGoalModal.querySelector('h3');
+        const modalSubtitle = DOM.createGoalModal.querySelector('p');
+        const goalNameLabel = DOM.createGoalModal.querySelector('label[for="goal-name"]');
+
+        DOM.goalSavedValueGroup.classList.add('hidden'); // Esconde o campo de valor salvo na criação
+        if (goalType === 'investimento') {
+            modalTitle.textContent = 'Criar Novo Investimento';
+            modalSubtitle.textContent = 'Defina um objetivo de investimento e o valor que você precisa alcançar.';
+            goalNameLabel.textContent = 'Nome do Investimento';
+            DOM.goalNameInput.placeholder = 'Ex: Ações da Empresa X';
+            DOM.createGoalBtnOk.textContent = 'Salvar Investimento';
+            DOM.goalCategoryGroup.classList.remove('hidden');
+            renderCategoryOptions(); // Popula com as categorias padrão
+            DOM.goalCategoryOtherInput.classList.add('hidden');
+        } else { // Padrão para 'meta'
+            modalTitle.textContent = 'Criar Nova Meta Financeira';
+            modalSubtitle.textContent = 'Defina um objetivo e o valor que você precisa economizar.';
+            goalNameLabel.textContent = 'Nome da Meta';
+            DOM.goalNameInput.placeholder = 'Ex: Viagem para a praia';
+            DOM.createGoalBtnOk.textContent = 'Salvar Meta';
+            DOM.goalCategoryGroup.classList.add('hidden');
         }
+
+        DOM.goalNameInput.value = '';
+        document.getElementById('delete-goal-from-modal-btn').classList.add('hidden');
+        DOM.goalTargetValueInput.value = '';
+        DOM.createGoalModal.classList.remove('hidden');
+        DOM.goalNameInput.focus();
+    };
+    const openEditCustomGoalModal = (goalId) => {
+        if (!DOM.createGoalModal) return;
+
+        const goal = State.customGoals.find(g => g.id === goalId);
+        if (!goal) return;
+
+        State.editingGoalId = goalId; // Define o modo de edição
+
+        const modalTitle = DOM.createGoalModal.querySelector('h3');
+        const goalNameLabel = DOM.createGoalModal.querySelector('label[for="goal-name"]');
+
+        // Adapta o modal de edição com base no tipo da meta (se existir)
+        if (goal.type === 'investimento') {
+            modalTitle.textContent = 'Editar Investimento';
+            goalNameLabel.textContent = 'Nome do Investimento';
+            DOM.goalCategoryGroup.classList.remove('hidden');
+            renderCategoryOptions(goal.category); // Popula e seleciona a categoria correta
+        } else {
+            modalTitle.textContent = 'Editar Meta';
+            goalNameLabel.textContent = 'Nome da Meta';
+            DOM.goalCategoryGroup.classList.add('hidden');
+        }
+
+        DOM.createGoalBtnOk.textContent = 'Salvar Alterações';
+        DOM.goalNameInput.value = goal.name;
+
+        const deleteBtn = document.getElementById('delete-goal-from-modal-btn');
+        deleteBtn.classList.remove('hidden');
+        deleteBtn.onclick = () => {
+            deleteCustomGoal(goalId);
+        };
+
+        // Exibe e preenche o campo de valor salvo
+        DOM.goalSavedValueGroup.classList.remove('hidden');
+        DOM.goalSavedValueInput.value = (goal.saved || 0).toString().replace('.', ',');
+        // Limpa o campo de "outra categoria" para evitar confusão
+        DOM.goalCategoryOtherInput.value = '';
+
+        DOM.goalTargetValueInput.value = goal.target.toString().replace('.', ',');
+        DOM.createGoalModal.classList.remove('hidden');
+        DOM.goalNameInput.focus();
     };
 
-    const saveNewCustomGoal = () => {
+    const saveCustomGoal = () => {
         const name = DOM.goalNameInput.value.trim();
         const targetValue = parseFloat(DOM.goalTargetValueInput.value.replace(',', '.'));
+        const savedValue = parseFloat(DOM.goalSavedValueInput.value.replace(',', '.')) || 0;
 
         if (!name || isNaN(targetValue) || targetValue <= 0) {
             showNotification('Por favor, preencha um nome e um valor alvo válido.', 'error');
             return;
         }
 
-        const newGoal = {
-            id: Date.now(),
-            name: name,
-            target: targetValue,
-            saved: 0, // Começa com 0 guardado
-        };
+        if (State.editingGoalId) {
+            // Modo de Edição
+            const goalIndex = State.customGoals.findIndex(g => g.id === State.editingGoalId);
+            if (goalIndex > -1) {
+                State.customGoals[goalIndex].name = name;
+                State.customGoals[goalIndex].target = targetValue;
+                State.customGoals[goalIndex].saved = savedValue;
 
-        State.customGoals.push(newGoal);
+                // Se for um investimento, atualiza a categoria
+                if (State.customGoals[goalIndex].type === 'investimento') {
+                    let category = DOM.goalCategorySelect.value;
+                    if (category === 'Outra') {
+                        const newCategory = DOM.goalCategoryOtherInput.value.trim();
+                        if (newCategory) {
+                            category = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+                            if (!State.investmentCategories.includes(category)) {
+                                State.investmentCategories.push(category);
+                                saveInvestmentCategoriesToLocalStorage();
+                            }
+                        } else {
+                            showNotification('Por favor, especifique a nova categoria de investimento.', 'error');
+                            return;
+                        }
+                    }
+                    State.customGoals[goalIndex].category = category;
+                }
+                showNotification(`Ativo "${name}" atualizado com sucesso!`, 'success');
+            }
+        } else {
+            // Modo de Criação
+            const newGoal = {
+                id: Date.now(),
+                name: name,
+                target: targetValue,
+                saved: 0,
+                type: State.goalCreationType || 'meta', // Salva o tipo da meta
+            };
+
+            // Se for um investimento, define a categoria
+            if (newGoal.type === 'investimento') {
+                let category = DOM.goalCategorySelect.value;
+                if (category === 'Outra') {
+                    const newCategory = DOM.goalCategoryOtherInput.value.trim();
+                    if (newCategory) {
+                        category = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+                        if (!State.investmentCategories.includes(category)) {
+                            State.investmentCategories.push(category);
+                            saveInvestmentCategoriesToLocalStorage();
+                        }
+                    }
+                }
+                newGoal.category = category || 'Sem Categoria';
+            }
+
+            State.customGoals.push(newGoal);
+            const typeText = newGoal.type === 'investimento' ? 'Investimento' : 'Meta';
+            showNotification(`${typeText} "${name}" criado com sucesso!`, 'success');
+        }
+
         saveCustomGoalsToLocalStorage();
-        showNotification(`Meta "${name}" criada com sucesso!`, 'success');
         if (DOM.createGoalModal) DOM.createGoalModal.classList.add('hidden');
         updateDOM(); // Re-renderiza a UI para mostrar a nova meta
+        resetFormState(); // Limpa o formulário principal também
     };
 
     const setValuesVisibility = (isVisible) => {
         State.valuesVisible = isVisible;
     };
 
+    const openResetGoalsModal = () => {
+        if (!DOM.resetGoalsModal || !DOM.resetGoalsList) return;
+
+        DOM.resetGoalsList.innerHTML = ''; // Limpa a lista anterior
+
+        // Adiciona a meta principal à lista de seleção
+        const mainGoalHTML = `
+            <label>
+                <input type="checkbox" name="goal_to_reset" value="main">
+                <span>🎯 ${State.mainGoal.name} (Principal)</span>
+            </label>
+        `;
+        DOM.resetGoalsList.insertAdjacentHTML('beforeend', mainGoalHTML);
+
+        // Adiciona as metas personalizadas
+        State.customGoals.forEach(goal => {
+            const customGoalHTML = `
+                <label>
+                    <input type="checkbox" name="goal_to_reset" value="${goal.id}">
+                    <span>${goal.type === 'investimento' ? '💡' : '🎯'} ${goal.name}</span>
+                </label>
+            `;
+            DOM.resetGoalsList.insertAdjacentHTML('beforeend', customGoalHTML);
+        });
+
+        DOM.resetGoalsModal.classList.remove('hidden');
+    };
+
+    const resetSelectedGoals = () => {
+        const selectedGoals = document.querySelectorAll('input[name="goal_to_reset"]:checked');
+        if (selectedGoals.length === 0) {
+            showNotification('Nenhuma meta foi selecionada para resetar.', 'info');
+            return;
+        }
+
+        selectedGoals.forEach(checkbox => {
+            const goalId = checkbox.value;
+            if (goalId === 'main') {
+                State.mainGoal.saved = 0;
+            } else {
+                const goal = State.customGoals.find(g => g.id === parseInt(goalId, 10));
+                if (goal) goal.saved = 0;
+            }
+        });
+
+        saveMainGoalToLocalStorage();
+        saveCustomGoalsToLocalStorage();
+        DOM.resetGoalsModal.classList.add('hidden');
+        showNotification('Progresso das metas selecionadas foi resetado.', 'success');
+        updateDOM();
+    };
+
+    /**
+     * Renderiza as opções de categoria de investimento no select do modal.
+     * @param {string} [selectedCategory] - A categoria a ser pré-selecionada.
+     */
+    const renderCategoryOptions = (selectedCategory) => {
+        if (!DOM.goalCategorySelect) return;
+
+        DOM.goalCategorySelect.innerHTML = ''; // Limpa as opções
+
+        State.investmentCategories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            DOM.goalCategorySelect.appendChild(option);
+        });
+
+        const otherOption = document.createElement('option');
+        otherOption.value = 'Outra';
+        otherOption.textContent = 'Outra...';
+        DOM.goalCategorySelect.appendChild(otherOption);
+
+        DOM.goalCategorySelect.value = selectedCategory || State.investmentCategories[0];
+    };
+
+    /**
+     * Lida com o início do arraste de um card de investimento.
+     */
+    const handleDragStart = (e) => {
+        const card = e.target.closest('.meta-card');
+        if (!card) return;
+        State.draggedItemId = parseInt(card.dataset.id, 10);
+        // Adiciona um pequeno delay para o navegador "pegar" o elemento
+        setTimeout(() => card.classList.add('dragging'), 0);
+    };
+
+    /**
+     * Lida com o fim do arraste (quando o item é solto).
+     */
+    const handleDragEnd = (e) => {
+        const card = e.target.closest('.meta-card');
+        if (card) card.classList.remove('dragging');
+        // Limpa as classes de 'drag-over' de todos os cards
+        document.querySelectorAll('.meta-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        State.draggedItemId = null;
+    };
+
+    /**
+     * Previne o comportamento padrão para permitir o 'drop'.
+     */
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        const targetCard = e.target.closest('.meta-card');
+        if (!targetCard || parseInt(targetCard.dataset.id, 10) === State.draggedItemId) return;
+
+        // Remove a classe de todos os outros para ter apenas um indicador
+        document.querySelectorAll('.meta-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        targetCard.classList.add('drag-over');
+    };
+
+    /**
+     * Lida com o evento de soltar o card.
+     */
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const dropTargetCard = e.target.closest('.meta-card');
+        if (!dropTargetCard || !State.draggedItemId) return;
+
+        const draggedId = State.draggedItemId;
+        const targetId = parseInt(dropTargetCard.dataset.id, 10);
+
+        const draggedIndex = State.customGoals.findIndex(g => g.id === draggedId);
+        const targetIndex = State.customGoals.findIndex(g => g.id === targetId);
+
+        if (draggedIndex > -1 && targetIndex > -1) {
+            // Remove o item arrastado e o insere antes do item alvo
+            const [draggedItem] = State.customGoals.splice(draggedIndex, 1);
+            // Recalcula o targetIndex após a remoção, pois o array mudou
+            const newTargetIndex = State.customGoals.findIndex(g => g.id === targetId);
+            State.customGoals.splice(newTargetIndex >= 0 ? newTargetIndex : targetIndex, 0, draggedItem);
+
+            saveCustomGoalsToLocalStorage();
+            updateDOM(); // Re-renderiza a lista na nova ordem
+        }
+    };
+
+    // Funções de formulário refatoradas para serem chamadas pelo orquestrador
+    const addTransaction = (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const valorInput = form.querySelector('#valor');
+        const descricaoInput = form.querySelector('#descricao');
+        const categoriaInput = form.querySelector('#categoria');
+        const categoriaOutraInput = form.querySelector('#categoria-outra');
+
+        const valor = parseFloat(valorInput.value.replace(',', '.'));
+        const tipo = form.querySelector('input[name="tipo"]:checked').value;
+
+        let pagamento = 'N/A';
+        if (tipo === 'despesa') {
+            const pagamentoRadio = form.querySelector('input[name="forma_pagamento"]:checked');
+            pagamento = pagamentoRadio ? pagamentoRadio.value : 'debito';
+        }
+
+        const descricao = descricaoInput.value.trim();
+        let categoria = categoriaInput.value;
+
+        if (categoria === 'Outra') {
+            const novaCategoria = categoriaOutraInput.value.trim();
+            if (novaCategoria) {
+                categoria = novaCategoria.charAt(0).toUpperCase() + novaCategoria.slice(1);
+                if (!State.transactionCategories.includes(categoria)) {
+                    State.transactionCategories.push(categoria);
+                    saveTransactionCategoriesToLocalStorage();
+                }
+            } else {
+                showNotification('Por favor, especifique o nome da nova categoria.', 'error');
+                return;
+            }
+        }
+
+        if (descricao === '' || isNaN(valor) || valor <= 0) {
+            showNotification('Por favor, preencha a descrição e um valor válido.', 'error');
+            return;
+        }
+
+        let transactionIdToHighlight;
+
+        if (State.editingId) {
+            const transactionIndex = State.transactions.findIndex(t => t.id === State.editingId);
+            if (transactionIndex > -1) {
+                const originalTransaction = State.transactions[transactionIndex];
+                State.transactions[transactionIndex] = {
+                    ...originalTransaction,
+                    descricao, valor, categoria, tipo,
+                    pagamento: (tipo === 'receita') ? 'N/A' : pagamento,
+                };
+                transactionIdToHighlight = State.editingId;
+                showNotification('Transação atualizada com sucesso!', 'success');
+            }
+        } else {
+            const newTransaction = {
+                id: Date.now(),
+                descricao, valor, categoria, tipo,
+                pagamento: (tipo === 'receita') ? 'N/A' : pagamento,
+                data: new Date().toISOString()
+            };
+            transactionIdToHighlight = newTransaction.id;
+            State.transactions.unshift(newTransaction);
+            showNotification('Transação adicionada com sucesso!', 'success');
+        }
+
+        saveToLocalStorage();
+        updateDOM({ highlightId: transactionIdToHighlight });
+        resetFormState();
+        if (categoriaOutraInput) categoriaOutraInput.classList.add('hidden');
+        DOM.addTransactionModal.classList.add('hidden');
+    };
+
+    const populateFormForEdit = (transactionData) => {
+        const transaction = State.transactions.find(t => t.id === transactionData.id);
+        if (!transaction) return;
+
+        const form = document.querySelector('#add-transaction-modal #formTransacao');
+        if (!form) return;
+
+        State.editingId = transaction.id;
+        form.querySelector('#descricao').value = transaction.descricao;
+        form.querySelector('#valor').value = transaction.valor.toString().replace('.', ',');
+        const categoriaSelect = form.querySelector('#categoria');
+        categoriaSelect.value = transaction.categoria;
+
+        const tipoRadio = form.querySelector(`input[name="tipo"][value="${transaction.tipo}"]`);
+        if (tipoRadio) tipoRadio.checked = true;
+
+        const isExpense = transaction.tipo === 'despesa';
+        const pagamentoFieldset = form.querySelector('#forma-pagamento-fieldset');
+        if (pagamentoFieldset) pagamentoFieldset.style.display = isExpense ? 'block' : 'none';
+
+        if (isExpense && transaction.pagamento !== 'N/A') {
+            const pagamentoRadio = form.querySelector(`input[name="forma_pagamento"][value="${transaction.pagamento}"]`);
+            if (pagamentoRadio) pagamentoRadio.checked = true;
+        }
+
+        categoriaSelect.dispatchEvent(new Event('change'));
+        form.querySelector('#addTransactionBtn').textContent = 'Atualizar Transação';
+        form.querySelector('#cancelEditBtn').classList.remove('hidden');
+        form.querySelector('#descricao').focus();
+        DOM.addTransactionModal.classList.remove('hidden');
+    };
+
+    const resetFormState = () => {
+        const form = document.querySelector('#add-transaction-modal #formTransacao');
+        if (!form) return;
+
+        State.editingId = null;
+        form.reset();
+
+        form.querySelector('#addTransactionBtn').textContent = 'Adicionar Transação';
+        form.querySelector('#cancelEditBtn').classList.add('hidden');
+
+        const tipoRadios = form.querySelectorAll('input[name="tipo"]');
+        tipoRadios.forEach(radio => {
+            radio.disabled = false;
+            if (radio.parentElement) radio.parentElement.classList.remove('disabled');
+        });
+        const formaPagamentoRadios = form.querySelectorAll('input[name="forma_pagamento"]');
+        formaPagamentoRadios.forEach(radio => {
+            radio.disabled = false;
+            if (radio.parentElement) radio.parentElement.classList.remove('disabled');
+        });
+        form.querySelector('#descricao').focus();
+    };
+
+    const handleBudgetChange = (e) => {
+        const category = e.target.dataset.category;
+        const value = parseFloat(e.target.value.replace(',', '.'));
+
+        if (!isNaN(value) && value > 0) {
+            State.budgets[category] = value;
+            showNotification(`Orçamento para ${category} salvo.`, 'info');
+        } else {
+            delete State.budgets[category];
+            showNotification(`Orçamento para ${category} removido.`, 'info');
+        }
+        saveBudgetsToLocalStorage();
+        renderBudgetProgress();
+    };
+
     return {
-        init,
+        init: () => {
+            renderTransactionCategoryOptions();
+            renderBudgetForms();
+        },
         updateDOM,
         setFilter, // Expõe a nova função de filtro
         showAllTransactions, // Expõe a nova função
@@ -1570,9 +2320,26 @@ function createTransactionManager(DOM) {
         setValuesVisibility, // Expõe a nova função para controlar a visibilidade
         openSetGoalModal,
         saveMainGoal,
+        openAddFundsToMainGoalModal,
         openCreateGoalModal,
-        saveNewCustomGoal,
+        saveCustomGoal,
+        openCategoryManager,
+        addNewCategoryFromManager,
+        handleCategoryActions,
+        renderTransactionCategoryOptions,
         handleGoalActions,
-        addFundsToCustomGoal,
+        addFundsToGoal,
+        openResetGoalsModal,
+        resetSelectedGoals,
+        // Funções que precisam ser expostas para o orquestrador
+        addTransaction,
+        populateFormForEdit,
+        resetFormState,
+        deleteTransaction,
+        handleBudgetChange,
+        clearAllTransactions,
+        exportTransactionsToHTML,
+        exportTransactionsToCSV,
+        payCreditCardBill,
     };
 }
